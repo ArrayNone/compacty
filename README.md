@@ -7,13 +7,15 @@
 ## ...why?
 Every tool and every file is unique. **Which tool that gives the best compression on one file might be different on another.**
 
-compacty was born out of a need for Roblox game development. In Roblox, assets are downloaded every time a player joins a game. Finding the best possible compression for each asset is crucial to reduce load times. However, manually testing a file against multiple compression tools is tedious. compacty automates this process. It runs your files through multiple compression tools and finding the most optimal compression for you.
+compacty was born out of a need in Roblox game development. In Roblox, assets are downloaded every time a player joins a game. Finding the best possible compression for each asset is crucial to reduce load times. However, manually testing a file against multiple compression tools is tedious. **compacty automates this process.** It runs your files through multiple compression tools and finding the most optimal compression for you.
+
+compacty was also my first real shot at learning Go. I enjoyed it.
 
 ## installation
 
 ### prerequisites!
 > [!IMPORTANT]
-> compacty is a meta-tool that runs other compression tools. **compacty does not include these tools by itself.** You must get the tools you wish to use separately and ensure that:
+> compacty is a meta-tool that runs other compression tools. **compacty does not include nor bundle these tools by itself.** You must get the tools you wish to use separately and ensure that:
 > - They're available in your system's `PATH`, or
 > - The binary is placed in the same directory as compacty.
 
