@@ -327,7 +327,7 @@ func (c *CompressionProcess) SaveResultsAndReport(writeMode WriteMode) (allOk bo
 		bestToolSize := c.findBestToolSize(i)
 		bestToolDecodeTime := c.findBestToolDecodeTime(i)
 
-		c.outputResultSummary(i, bestToolSize, bestToolDecodeTime, sortedToolNames)
+		c.printResultSummary(i, bestToolSize, bestToolDecodeTime, sortedToolNames)
 		ok := c.flushResult(bestToolSize, i, writeMode)
 		if !ok {
 			allOk = false
@@ -464,7 +464,7 @@ func (c *CompressionProcess) flushResult(fromTool string, fileIdx int, writeMode
 	return ok
 }
 
-func (c *CompressionProcess) outputResultSummary(fileIdx int, bestToolSize, bestToolDecodeTime string, presortedToolNames []string) {
+func (c *CompressionProcess) printResultSummary(fileIdx int, bestToolSize, bestToolDecodeTime string, presortedToolNames []string) {
 	fileInfo := c.OriginalFileInfo[fileIdx]
 
 	summaryBuilder := &strings.Builder{}
@@ -481,13 +481,14 @@ func (c *CompressionProcess) outputResultSummary(fileIdx int, bestToolSize, best
 
 	summaryBuilder.WriteString("| original: ")
 	summaryBuilder.WriteString(color.CyanString("%d (100.000000%%)", fileInfo.Size))
+
 	if c.AreDecodeTimeComputed {
 		summaryBuilder.WriteString(" - ")
 
 		if fileInfo.Decode.Err != nil {
 			summaryBuilder.WriteString(color.YellowString("DECODE TIME ERROR"))
 		} else {
-			summaryBuilder.WriteString(fileInfo.Decode.MSAverageWithTrialsCountString())
+			summaryBuilder.WriteString(color.CyanString(fileInfo.Decode.MSAverageWithTrialsCountString()))
 		}
 	}
 

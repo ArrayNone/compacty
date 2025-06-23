@@ -36,6 +36,10 @@ func (dt DecodeTimeBench) MSAverageToString() string {
 }
 
 func (dt DecodeTimeBench) MSAverageWithTrialsCountString() string {
+	if dt.Trials == 0 {
+		return dt.MSAverageToString()
+	}
+
 	trialText := textutils.PluralNoun(dt.Trials, "trials", "trial")
 	return fmt.Sprintf("%s (%d %s)", dt.MSAverageToString(), dt.Trials, trialText)
 }
