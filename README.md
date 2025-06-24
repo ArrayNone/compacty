@@ -34,6 +34,12 @@ The default configuration uses the following tools:
 1. Navigate to the [Releases](https://github.com/ArrayNone/compacty/releases/) page
 2. Download the binary appropriate for your operating system (Windows, MacOS, Linux)
 
+### from source
+Requires Go 1.24.4 or later.
+```bash
+go install github.com/ArrayNone/compacty/cmd/compacty@latest
+```
+
 ## usage examples
 
 ```bash
