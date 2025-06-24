@@ -9,7 +9,7 @@ Every tool and every file is unique. **Which tool that gives the best compressio
 
 compacty was born out of a need in Roblox game development. In Roblox, assets are downloaded every time a player joins a game. Finding the best possible compression for each asset is crucial to reduce load times. However, manually testing a file against multiple compression tools is tedious. **compacty automates this process.** It runs your files through multiple compression tools and finding the most optimal compression for you.
 
-compacty was also my first real shot at learning Go. I enjoyed it.
+compacty is also my first real shot at learning Go. I enjoyed it.
 
 ## installation
 
@@ -43,19 +43,22 @@ go install github.com/ArrayNone/compacty/cmd/compacty@latest
 ## usage examples
 
 ```bash
-# Run by using the `default-preset` defined in your config file
-compacty image.png
-
 # Run by using a specific preset
 compacty --preset=lossy-highquality imageA.png imageB.jpeg
+
+# Run by using the `default-preset` defined in your config file
+compacty image.png
 
 # List all of your tools and presets from the config file
 compacty --list
 
-# Generate a `.tsv` report after compressing for further analysis (`.tsv` report separated for each file format)
-compacty --report imageA.png ./Pictures/imageB.jpeg # Generates report.png.tsv and ./Pictures/report.jpeg.tsv 
+# Generate a .tsv report after compressing for further analysis
+# The reports are placed to the directory of the first file for each file format
+# For example, this command will place the reports as ./report.png.tsv and ./Pictures/report.jpeg.tsv 
+compacty --report imageA.png ./Pictures/imageB.jpeg ./Pictures/Photos/imageC.jpeg
 
-# [EXPERIMENTAL] Measure the decoding time for each compression result using Go's native binaries. Only PNGs, JPEGs, and GIFs are supported.
+# [EXPERIMENTAL] Measure the decoding time for each compression result using Go's native binaries 
+# Only PNGs, JPEGs, and GIFs are supported
 # (use `--keep-all` to save the results that have the fastest decode time)
 compacty --decode-time imageA.png
 ```
@@ -69,6 +72,8 @@ compacty uses a `config.yaml` file that defines tools, presets, etc. On first ru
 - macOS: `~/Library/Application Support/compacty/config.yaml`
 
 You can see the default configuration at [defaultconfig.go](./internal/config/defaultconfig.go). A more complete configuration is available at [complete-config.yaml](./complete-config.yaml) that contains even more tools, ready to be copy-pasted.
+
+Your `config.yaml` will be validated on startup to check for inconsistencies and potential problems. See `Validate()` in [config.go](./internal/config/config.go) for all checks.
 
 ## licensing
 compacty is licensed under the MIT License. See the [LICENSE](./LICENSE) file for more information.
