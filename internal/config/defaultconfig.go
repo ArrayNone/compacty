@@ -248,7 +248,7 @@ tools:
       # lossy-almostperfect omitted: Can't consistently reach 90 SSIM2 at max quality score
       # image-keepalpha omitted: Does not support preserving fully transparent pixels
 
-  
+
   # JPEG
   # JPEG does not support transparent pixels, no image-keepalpha
   jpegoptim:
