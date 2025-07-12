@@ -65,7 +65,7 @@ presets:
     shorthands: [image-alpha, img-alpha]
     default-tools:
       image/vnd.mozilla.apng: []
-      image/png: [pingo]
+      image/png: [pingo, zopflipng]
       image/gif: []
 
   lossy-lowquality:
@@ -217,6 +217,20 @@ tools:
       # image-keepalpha omitted: Does not support preserving fully transparent pixels
       # lossy-* omitted: Lossless only
 
+  zopflipng:
+    description: Lossless PNG optimizer. https://github.com/google/zopfli/
+    command: zopflipng
+    platform: [windows, darwin, linux]
+    supported-formats: [image/png]
+    output-mode: input-output
+    arguments:
+      default-args: ["--lossy_transparent"]
+      lossless-loweffort: ["--lossy_transparent", "-q"]
+      lossless-higheffort: ["--lossy_transparent", "-m"]
+      lossless-maxbrute: ["--lossy_transparent", "--iterations=100", "--filters=01234mepb"]
+      image-keepalpha: ["-m"]
+      # lossy-* omitted: Lossless only
+
   pngquant:
     description: Lossy PNG compressor. https://pngquant.org/
     command: pngquant
@@ -234,7 +248,7 @@ tools:
       # lossy-almostperfect omitted: Can't consistently reach 90 SSIM2 at max quality score
       # image-keepalpha omitted: Does not support preserving fully transparent pixels
 
-
+  
   # JPEG
   # JPEG does not support transparent pixels, no image-keepalpha
   jpegoptim:
