@@ -64,8 +64,9 @@ presets:
     description: Lossless image compression with high effort compression settings and fully transparent pixels (a = 0) retained.
     shorthands: [image-alpha, img-alpha]
     default-tools:
-      image/vnd.mozilla.apng: [oxipng, pingo]
-      image/png: [oxipng, ect, pingo]
+      image/vnd.mozilla.apng: []
+      image/png: [pingo, zopflipng]
+      image/gif: []
 
   lossy-lowquality:
     # Images are typically compressed to at least 40 score in the SSIMULACRA2 metric
@@ -143,7 +144,8 @@ tools:
       lossless-loweffort: ["--mt-file", "--mt-deflate", "-2"] # ect does no compression at 1
       lossless-higheffort: ["--mt-file", "--mt-deflate", "-9"]
       lossless-maxbrute: ["--mt-file", "--mt-deflate", "-9", "--allfilters"]
-      image-keepalpha: ["--mt-file", "--mt-deflate", "-9", "--strict"]
+      # Omitted, still modifies fully transparent pixels
+      #image-keepalpha: ["--mt-file", "--mt-deflate", "-9", "--strict"]
       # lossy-* omitted: Lossless only
 
   imagemagick:
@@ -197,7 +199,8 @@ tools:
       lossless-loweffort: ["--force", "-o", "1", "-a"]
       lossless-higheffort: ["--force", "-o", "max", "-a"]
       lossless-maxbrute: ["--force", "-o", "max", "-a", "-Z", "--zi", "100"]
-      image-keepalpha: ["--force", "-o", "max"] # Opt-out of -a
+      # Omitted, still modifies fully transparent pixels
+      #image-keepalpha: ["--force", "-o", "max"] # Opt-out of -a
       # lossy-* omitted: Lossless only
 
   pngout:
@@ -212,6 +215,20 @@ tools:
       lossless-higheffort: ["-force", "-y", "-s1"]
       lossless-maxbrute: ["-force", "-y", "-s0"]
       # image-keepalpha omitted: Does not support preserving fully transparent pixels
+      # lossy-* omitted: Lossless only
+
+  zopflipng:
+    description: Lossless PNG optimizer. https://github.com/google/zopfli/
+    command: zopflipng
+    platform: [windows, darwin, linux]
+    supported-formats: [image/png]
+    output-mode: input-output
+    arguments:
+      default-args: ["--lossy_transparent"]
+      lossless-loweffort: ["--lossy_transparent", "-q"]
+      lossless-higheffort: ["--lossy_transparent", "-m"]
+      lossless-maxbrute: ["--lossy_transparent", "--iterations=100", "--filters=01234mepb"]
+      image-keepalpha: ["-m"]
       # lossy-* omitted: Lossless only
 
   pngquant:

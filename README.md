@@ -25,6 +25,7 @@ The default configuration uses the following tools:
 - [pingo](https://css-ig.net/pingo/) (for Windows. To run this on Linux and MacOS you would need to install `wine`)
 - [oxipng](https://github.com/shssoichiro/oxipng/)
 - [pngout](http://www.advsys.net/ken/utils.html)
+- [zopflipng](https://github.com/google/zopfli)
 - [pngquant](https://pngquant.org/)
 - [jpegoptim](https://github.com/tjko/jpegoptim/)
 - jpegtran (a JPEG manipulation tool provided by [libjpeg](https://jpegclub.org/reference/reference-sources/), [libjpeg-turbo](https://github.com/libjpeg-turbo/libjpeg-turbo), or [mozjpeg](https://github.com/mozilla/mozjpeg/))
