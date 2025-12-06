@@ -1,8 +1,8 @@
 package prints
 
 import (
-	"os"
 	"fmt"
+	"os"
 
 	"github.com/fatih/color"
 )
@@ -21,7 +21,7 @@ func Warnf(format string, parameters ...any) {
 }
 
 func Print(items ...any) {
-	if (IsQuiet) {
+	if IsQuiet {
 		return
 	}
 
@@ -29,7 +29,7 @@ func Print(items ...any) {
 }
 
 func Println(items ...any) {
-	if (IsQuiet) {
+	if IsQuiet {
 		return
 	}
 
@@ -37,7 +37,7 @@ func Println(items ...any) {
 }
 
 func Printf(format string, parameters ...any) {
-	if (IsQuiet) {
+	if IsQuiet {
 		return
 	}
 

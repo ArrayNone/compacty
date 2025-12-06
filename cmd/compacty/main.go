@@ -17,8 +17,8 @@ import (
 	"github.com/ArrayNone/compacty/internal/compressor"
 	"github.com/ArrayNone/compacty/internal/config"
 	"github.com/ArrayNone/compacty/internal/maputils"
-	"github.com/ArrayNone/compacty/internal/textutils"
 	"github.com/ArrayNone/compacty/internal/prints"
+	"github.com/ArrayNone/compacty/internal/textutils"
 
 	"github.com/fatih/color"
 	"github.com/spf13/pflag"

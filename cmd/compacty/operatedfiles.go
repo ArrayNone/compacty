@@ -11,8 +11,8 @@ import (
 
 	"github.com/ArrayNone/compacty/internal/compressor"
 	"github.com/ArrayNone/compacty/internal/config"
-	"github.com/ArrayNone/compacty/internal/report"
 	"github.com/ArrayNone/compacty/internal/prints"
+	"github.com/ArrayNone/compacty/internal/report"
 
 	"github.com/gabriel-vasile/mimetype"
 )
