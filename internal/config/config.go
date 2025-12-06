@@ -3,7 +3,6 @@ package config
 import (
 	"errors"
 	"fmt"
-	"log"
 	"maps"
 	"os"
 	"os/exec"
@@ -11,6 +10,8 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+
+	"github.com/ArrayNone/compacty/internal/prints"
 
 	"github.com/gabriel-vasile/mimetype"
 	"go.yaml.in/yaml/v3"
@@ -106,8 +107,8 @@ func CreateDefaultConfig(path string) (err error) {
 	return nil
 }
 
-func GetOrCreateUserConfigFile(warnLog *log.Logger) (path string, created bool, err error) {
-	path, err = createUserConfigFilePath(warnLog)
+func GetOrCreateUserConfigFile() (path string, created bool, err error) {
+	path, err = createUserConfigFilePath()
 	if err != nil {
 		return "", false, fmt.Errorf("cannot retrieve the user's config path: %w", err)
 	}
@@ -527,10 +528,10 @@ func (o OutputMode) MarshalYAML() (any, error) {
 	}, nil
 }
 
-func createUserConfigFilePath(warnLog *log.Logger) (configPath string, err error) {
+func createUserConfigFilePath() (configPath string, err error) {
 	userConfig, err := os.UserConfigDir()
 	if err != nil {
-		warnLog.Printf("Cannot retrieve user config directory: %v\n", err)
+		prints.Warnf("Cannot retrieve user config directory: %v\n", err)
 		return "", err
 	}
 
@@ -539,7 +540,7 @@ func createUserConfigFilePath(warnLog *log.Logger) (configPath string, err error
 	const rwxr_xr_x = 0755
 	err = os.MkdirAll(appConfigDir, rwxr_xr_x)
 	if err != nil {
-		warnLog.Printf("Cannot create config directory %s: %v\n", appConfigDir, err)
+		prints.Warnf("Cannot create config directory %s: %v\n", appConfigDir, err)
 		return "", err
 	}
 

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"maps"
 	"os"
 	"os/signal"
@@ -19,6 +18,7 @@ import (
 	"github.com/ArrayNone/compacty/internal/config"
 	"github.com/ArrayNone/compacty/internal/maputils"
 	"github.com/ArrayNone/compacty/internal/textutils"
+	"github.com/ArrayNone/compacty/internal/prints"
 
 	"github.com/fatih/color"
 	"github.com/spf13/pflag"
@@ -76,8 +76,6 @@ func main() {
 }
 
 func run(cliArguments *CLIArguments) (err error) {
-	printLog := log.New(os.Stdout, "", 0)
-	warnLog := log.New(os.Stderr, color.YellowString("Warning: "), 0)
 	if cliArguments.ForceRename && cliArguments.NoRename {
 		return &ExitCodeError{
 			Err:  errors.New("cannot pass both --force-rename and --no-rename at once"),
@@ -86,7 +84,7 @@ func run(cliArguments *CLIArguments) (err error) {
 	}
 
 	if cliArguments.ActionVersion {
-		printLog.Println("compacty", version)
+		prints.Println("compacty", version)
 		return nil
 	}
 
@@ -96,12 +94,11 @@ func run(cliArguments *CLIArguments) (err error) {
 	}
 
 	if cliArguments.Quiet {
-		printLog.SetOutput(io.Discard)
-		warnLog.SetOutput(io.Discard)
+		prints.IsQuiet = true
 	}
 
 	if cliArguments.ConfigPath == "" {
-		defaultConfigPath, isCreated, err := config.GetOrCreateUserConfigFile(warnLog)
+		defaultConfigPath, isCreated, err := config.GetOrCreateUserConfigFile()
 		if err != nil {
 			return &ExitCodeError{
 				Err:  fmt.Errorf("can't retrieve config file: %w", err),
@@ -110,14 +107,14 @@ func run(cliArguments *CLIArguments) (err error) {
 		}
 
 		if isCreated && !cliArguments.ActionGetConfigPath {
-			printLog.Println("User config file does not exist, created a default on:", defaultConfigPath)
+			prints.Println("User config file does not exist, created a default on:", defaultConfigPath)
 		}
 
 		cliArguments.ConfigPath = defaultConfigPath
 	}
 
 	if cliArguments.ActionGetConfigPath {
-		printLog.Println(cliArguments.ConfigPath)
+		prints.Println(cliArguments.ConfigPath)
 		return nil
 	}
 
@@ -130,7 +127,7 @@ func run(cliArguments *CLIArguments) (err error) {
 			}
 		}
 
-		printLog.Printf("Config file at %s has been reset.\n", cliArguments.ConfigPath)
+		prints.Printf("Config file at %s has been reset.\n", cliArguments.ConfigPath)
 
 		// Exit early, do not print help message
 		if pflag.NArg() == 0 {
@@ -161,7 +158,7 @@ func run(cliArguments *CLIArguments) (err error) {
 	}
 
 	if cliArguments.ActionList {
-		list(loadedConfig, cliArguments.ConfigPath, printLog.Writer())
+		list(loadedConfig, cliArguments.ConfigPath)
 		return nil
 	}
 
@@ -196,14 +193,14 @@ func run(cliArguments *CLIArguments) (err error) {
 	}
 
 	if cliArguments.DecodeTime {
-		warnLog.Println("Decode time benchmarking is EXPERIMENTAL and MAY NOT reflect real-world performance!")
+		prints.Warnln("Decode time benchmarking is EXPERIMENTAL and MAY NOT reflect real-world performance!")
 	}
 
 	usingPresetStr := color.BlueString("Using preset:")
 	if isShorthand {
-		printLog.Println(usingPresetStr, queriedPreset, color.CyanString("->"), usedPreset)
+		prints.Println(usingPresetStr, queriedPreset, color.CyanString("->"), usedPreset)
 	} else {
-		printLog.Println(usingPresetStr, usedPreset)
+		prints.Println(usingPresetStr, usedPreset)
 	}
 
 	if cliArguments.All {
@@ -213,7 +210,7 @@ func run(cliArguments *CLIArguments) (err error) {
 	paths := pflag.Args()
 
 	renameMode := cliArguments.RenameMode()
-	operatedFiles := PathsToOperatedFiles(loadedConfig, paths, renameMode, printLog, warnLog)
+	operatedFiles := PathsToOperatedFiles(loadedConfig, paths, renameMode)
 	for _, operation := range operatedFiles {
 		if !pflag.Lookup("tools").Changed && !cliArguments.All {
 			operation.SetDefaultTools(loadedConfig, usedPreset, operation.Mime)
@@ -243,19 +240,19 @@ func run(cliArguments *CLIArguments) (err error) {
 
 	for _, operation := range operatedFiles {
 		if len(operation.BatchableTools) == 0 && len(operation.PerFileTools) == 0 {
-			warnLog.Printf("No valid tools found for file format %s (%s).\n", operation.Extension, operation.Mime)
+			prints.Warnf("No valid tools found for file format %s (%s).\n", operation.Extension, operation.Mime)
 			continue
 		}
 
 		hasTools = true
 
-		process, allOk := compressor.NewCompressionProcess(operation.Paths, wrappers, printLog, warnLog, toolOutput)
+		process, allOk := compressor.NewCompressionProcess(operation.Paths, wrappers, toolOutput)
 		defer process.CleanUp()
 		markErrorIfNotOk(allOk)
 
 		validCount := len(process.OriginalPaths)
 		if validCount == 0 {
-			warnLog.Printf("Cannot find valid %s paths.\n", operation.Extension)
+			prints.Warnf("Cannot find valid %s paths.\n", operation.Extension)
 			continue
 		}
 
@@ -263,7 +260,7 @@ func run(cliArguments *CLIArguments) (err error) {
 
 		if len(operation.BatchableTools) > 0 {
 			fileText := textutils.PluralNoun(validCount, "files", "file")
-			printLog.Println(
+			prints.Println(
 				color.BlueString("Compressing %d %s %s:", validCount, operation.Extension, fileText),
 				strings.Join(process.OriginalPaths, " "),
 			)
@@ -274,16 +271,16 @@ func run(cliArguments *CLIArguments) (err error) {
 				return &ExitCodeError{Err: errors.New("interrupted"), Code: Interrupted}
 			}
 
-			printLog.Println()
+			prints.Println()
 		}
 
 		if len(operation.PerFileTools) > 0 {
 			if !cliArguments.PerFile || len(operation.PerFileTools) == 1 {
-				printLog.Println("Running per-file tools.")
+				prints.Println("Running per-file tools.")
 			}
 
 			for i, path := range process.OriginalPaths {
-				printLog.Println(
+				prints.Println(
 					color.BlueString("Compressing %s file #%d:", operation.Extension, i+1),
 					color.CyanString(path),
 				)
@@ -294,7 +291,7 @@ func run(cliArguments *CLIArguments) (err error) {
 					return &ExitCodeError{Err: errors.New("interrupted"), Code: Interrupted}
 				}
 
-				printLog.Println()
+				prints.Println()
 			}
 		}
 
@@ -317,8 +314,8 @@ func run(cliArguments *CLIArguments) (err error) {
 
 	if !hasTools {
 		if !loadedConfig.HasAvailableTools() {
-			list(loadedConfig, cliArguments.ConfigPath, printLog.Writer())
-			printLog.Print(
+			list(loadedConfig, cliArguments.ConfigPath)
+			prints.Print(
 				"Note that compacty runs other compression tools. As such, these need to be either installed\n",
 				"in your PATH or the tool's executable must be placed in the same directory as compacty.\n",
 				"Scroll the list above to see your available presets and compression tools.\n",
@@ -447,7 +444,7 @@ func printHelp() {
 `, blue("Usage:"), blue("Options:"), blue("Save modes:"), blue("Advanced options:"))
 }
 
-func list(cfg *config.Config, configPath string, output io.Writer) {
+func list(cfg *config.Config, configPath string) {
 	var builder strings.Builder
 
 	builder.WriteString("Config loaded from ")
@@ -457,7 +454,7 @@ func list(cfg *config.Config, configPath string, output io.Writer) {
 	writeTools(&builder, cfg)
 	writePresets(&builder, cfg)
 
-	fmt.Fprint(output, builder.String())
+	fmt.Print(builder.String())
 }
 
 func writeTools(builder *strings.Builder, cfg *config.Config) {

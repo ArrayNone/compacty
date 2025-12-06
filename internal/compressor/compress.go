@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,6 +17,7 @@ import (
 	"github.com/ArrayNone/compacty/internal/config"
 	"github.com/ArrayNone/compacty/internal/maputils"
 	"github.com/ArrayNone/compacty/internal/textutils"
+	"github.com/ArrayNone/compacty/internal/prints"
 
 	"github.com/fatih/color"
 )
@@ -82,8 +82,6 @@ type CompressionProcess struct {
 	AreDecodeTimeComputed bool
 
 	toolOutput io.Writer
-	printLog   *log.Logger
-	warnLog    *log.Logger
 }
 
 type compressionCommand struct {
@@ -105,8 +103,6 @@ type compressionCommand struct {
 func NewCompressionProcess(
 	paths []string,
 	wrappers map[string]string,
-	printLog *log.Logger,
-	warnLog *log.Logger,
 	toolOutput io.Writer,
 ) (c *CompressionProcess, allOk bool) {
 
@@ -118,7 +114,7 @@ func NewCompressionProcess(
 	for _, path := range paths {
 		fileInfo, err := getFileInfo(path)
 		if err != nil {
-			warnLog.Printf("Cannot compress %s: %v. Skipping...\n", path, err)
+			prints.Warnf("Cannot compress %s: %v. Skipping...\n", path, err)
 			allOk = false
 			continue
 		}
@@ -138,8 +134,6 @@ func NewCompressionProcess(
 		AreDecodeTimeComputed: false,
 
 		toolOutput: toolOutput,
-		printLog:   printLog,
-		warnLog:    warnLog,
 	}, allOk
 }
 
@@ -161,13 +155,13 @@ func (c *CompressionProcess) CompressSingle(fileIdx int, ctx context.Context, to
 		command := newCompressionCommand(name, tool, wrapper)
 		commands[name] = command
 
-		c.TempFiles[name][fileIdx] = command.prepareSingleTempFile(c.OriginalFileInfo[fileIdx], c.warnLog)
+		c.TempFiles[name][fileIdx] = command.prepareSingleTempFile(c.OriginalFileInfo[fileIdx])
 		command.prepareCommand(ctx)
 
 		command.writeCommandLine(commandListBuilder)
 	}
 
-	c.printLog.Print(commandListBuilder.String())
+	prints.Print(commandListBuilder.String())
 
 	done = make(chan struct{})
 
@@ -184,7 +178,7 @@ func (c *CompressionProcess) CompressSingle(fileIdx int, ctx context.Context, to
 
 			go func(c *CompressionProcess, command *compressionCommand, wg *sync.WaitGroup, mut *sync.Mutex, i int) {
 				defer wg.Done()
-				command.executeAndReport(c.printLog, c.warnLog)
+				command.executeAndReport()
 
 				result := command.generateSingleResult(
 					c.OriginalFileInfo[i],
@@ -210,7 +204,7 @@ func (c *CompressionProcess) CompressAll(ctx context.Context, tools map[string]E
 
 	for name, tool := range tools {
 		if !tool.CanBatchCompress() {
-			c.warnLog.Printf("Compressing all files at once requires tools to be able to batch compress, which %s don't do. Skipping...\n", name)
+			prints.Warnf("Compressing all files at once requires tools to be able to batch compress, which %s don't do. Skipping...\n", name)
 			continue
 		}
 
@@ -219,13 +213,13 @@ func (c *CompressionProcess) CompressAll(ctx context.Context, tools map[string]E
 		command := newCompressionCommand(name, tool, wrapper)
 		commands[name] = command
 
-		c.TempFiles[name] = command.prepareTempFiles(c.OriginalFileInfo, c.warnLog)
+		c.TempFiles[name] = command.prepareTempFiles(c.OriginalFileInfo)
 		command.prepareCommand(ctx)
 
 		command.writeCommandLine(commandListBuilder)
 	}
 
-	c.printLog.Print(commandListBuilder.String())
+	prints.Print(commandListBuilder.String())
 
 	done = make(chan struct{})
 
@@ -242,7 +236,7 @@ func (c *CompressionProcess) CompressAll(ctx context.Context, tools map[string]E
 
 			go func(c *CompressionProcess, command *compressionCommand, wg *sync.WaitGroup, mut *sync.Mutex) {
 				defer wg.Done()
-				command.executeAndReport(c.printLog, c.warnLog)
+				command.executeAndReport()
 
 				tempFiles := c.TempFiles[command.toolName]
 				results := command.generateResults(c.OriginalFileInfo, tempFiles)
@@ -270,14 +264,14 @@ func (c *CompressionProcess) BenchmarkDecodeTime(minTime time.Duration) (done ch
 		totalFiles := len(c.OriginalFileInfo)
 
 		fileText := textutils.PluralNoun(totalFiles, "files", "file")
-		c.printLog.Println(color.BlueString("Computing decode time for %d %s:", totalFiles, fileText))
+		prints.Println(color.BlueString("Computing decode time for %d %s:", totalFiles, fileText))
 
 		for i, file := range c.OriginalFileInfo {
-			c.printLog.Printf("%s %s\n", file.Path, color.CyanString("(%d/%d)", i+1, totalFiles))
+			prints.Printf("%s %s\n", file.Path, color.CyanString("(%d/%d)", i+1, totalFiles))
 
 			file.Decode = benchDecodeTime(file.Path, minTime)
 			if file.Decode.Err != nil {
-				c.warnLog.Printf("Error occurred while benchmarking %s: %v\n", file.Path, file.Decode.Err)
+				prints.Warnf("Error occurred while benchmarking %s: %v\n", file.Path, file.Decode.Err)
 			}
 
 			for toolName, results := range c.Results {
@@ -293,7 +287,7 @@ func (c *CompressionProcess) BenchmarkDecodeTime(minTime time.Duration) (done ch
 						Err:     tempFile.CreateError,
 					}
 
-					c.warnLog.Printf("Cannot benchmark %s on %s. Output file doesn't exist: %v\n",
+					prints.Warnf("Cannot benchmark %s on %s. Output file doesn't exist: %v\n",
 						toolName,
 						file.FileName,
 						tempFile.CreateError,
@@ -304,12 +298,12 @@ func (c *CompressionProcess) BenchmarkDecodeTime(minTime time.Duration) (done ch
 
 				result.Decode = benchDecodeTime(tempFile.Path, minTime)
 				if result.Decode.Err != nil {
-					c.warnLog.Printf("Error occurred while benchmarking %s on %s: %v\n", tempFile.Path, toolName, result.Decode.Err)
+					prints.Warnf("Error occurred while benchmarking %s on %s: %v\n", tempFile.Path, toolName, result.Decode.Err)
 				}
 			}
 		}
 
-		c.printLog.Println()
+		prints.Println()
 		done <- struct{}{}
 	}(c, done)
 
@@ -321,7 +315,7 @@ func (c *CompressionProcess) SaveResultsAndReport(writeMode WriteMode) (allOk bo
 
 	sortedToolNames := maputils.SortedKeys(c.Results)
 
-	c.printLog.Println(color.BlueString("SUMMARY:"))
+	prints.Println(color.BlueString("SUMMARY:"))
 
 	for i := range c.OriginalFileInfo {
 		bestToolSize := c.findBestToolSize(i)
@@ -333,7 +327,7 @@ func (c *CompressionProcess) SaveResultsAndReport(writeMode WriteMode) (allOk bo
 			allOk = false
 		}
 
-		c.printLog.Println()
+		prints.Println()
 	}
 
 	return allOk
@@ -422,10 +416,10 @@ func (c *CompressionProcess) flushResult(fromTool string, fileIdx int, writeMode
 
 			err := moveFile(tempFile.Path, resultPath)
 			if err != nil {
-				c.warnLog.Printf("Cannot move result %s to %s: %v\n", tempFile.Path, resultPath, err)
+				prints.Warnf("Cannot move result %s to %s: %v\n", tempFile.Path, resultPath, err)
 				ok = false
 			} else {
-				c.printLog.Printf("Successfully moved result %s to %s.\n", tempFile.Path, color.CyanString(resultPath))
+				prints.Printf("Successfully moved result %s to %s.\n", tempFile.Path, color.CyanString(resultPath))
 			}
 		}
 
@@ -433,7 +427,7 @@ func (c *CompressionProcess) flushResult(fromTool string, fileIdx int, writeMode
 	}
 
 	if fromTool == "" {
-		c.printLog.Println("File cannot be compressed further. The original file is left as is.")
+		prints.Println("File cannot be compressed further. The original file is left as is.")
 		return ok
 	}
 
@@ -446,18 +440,18 @@ func (c *CompressionProcess) flushResult(fromTool string, fileIdx int, writeMode
 
 		err := moveFile(bestTempPath, resultPath)
 		if err != nil {
-			c.warnLog.Printf("Cannot move result %s to %s: %v\n", bestTempPath, resultPath, err)
+			prints.Warnf("Cannot move result %s to %s: %v\n", bestTempPath, resultPath, err)
 			ok = false
 		} else {
-			c.printLog.Printf("%s wins! Successfully moved result %s to %s.\n", fromTool, bestTempPath, color.CyanString(resultPath))
+			prints.Printf("%s wins! Successfully moved result %s to %s.\n", fromTool, bestTempPath, color.CyanString(resultPath))
 		}
 	case Overwrite:
 		err := moveFile(bestTempPath, fileInfo.Path)
 		if err != nil {
-			c.warnLog.Printf("Cannot overwrite %s: %v\n", fileInfo.Path, err)
+			prints.Warnf("Cannot overwrite %s: %v\n", fileInfo.Path, err)
 			ok = false
 		} else {
-			c.printLog.Printf("%s wins! Successfully overwritten %s.\n", fromTool, color.CyanString(fileInfo.Path))
+			prints.Printf("%s wins! Successfully overwritten %s.\n", fromTool, color.CyanString(fileInfo.Path))
 		}
 	}
 
@@ -521,7 +515,7 @@ func (c *CompressionProcess) printResultSummary(fileIdx int, bestToolSize, bestT
 		summaryBuilder.WriteByte('\n')
 	}
 
-	c.printLog.Print(summaryBuilder.String())
+	prints.Print(summaryBuilder.String())
 }
 
 func writeSizeLine(summaryBuilder *strings.Builder, result *CompressionResult, isBest bool) {
@@ -577,13 +571,13 @@ func newCompressionCommand(toolName string, tool ExecutedTool, wrapper string) (
 	}
 }
 
-func (cc *compressionCommand) prepareSingleTempFile(fileInfo *FileInfo, warnLog *log.Logger) (tempFile TempFile) {
+func (cc *compressionCommand) prepareSingleTempFile(fileInfo *FileInfo) (tempFile TempFile) {
 	tempPath := compressedFilePath(os.TempDir(), fileInfo.BaseName, cc.toolName, fileInfo.Extension)
 
 	if cc.tool.OutputMode == config.Stdout {
 		file, err := os.Create(tempPath)
 		if err != nil {
-			warnLog.Printf("Failed to create temp file %s. Skipping...\n", tempPath)
+			prints.Warnf("Failed to create temp file %s. Skipping...\n", tempPath)
 
 			cc.inputPaths = []string{}
 			return TempFile{
@@ -597,7 +591,7 @@ func (cc *compressionCommand) prepareSingleTempFile(fileInfo *FileInfo, warnLog 
 	} else if cc.tool.Overwrites() {
 		err := copyFileTo(fileInfo.Path, tempPath)
 		if err != nil {
-			warnLog.Printf("Failed to create temp file %s. Skipping...\n", tempPath)
+			prints.Warnf("Failed to create temp file %s. Skipping...\n", tempPath)
 
 			cc.inputPaths = []string{}
 			return TempFile{
@@ -617,7 +611,7 @@ func (cc *compressionCommand) prepareSingleTempFile(fileInfo *FileInfo, warnLog 
 	}
 }
 
-func (cc *compressionCommand) prepareTempFiles(fileInfo []*FileInfo, warnLog *log.Logger) (tempFiles []TempFile) {
+func (cc *compressionCommand) prepareTempFiles(fileInfo []*FileInfo) (tempFiles []TempFile) {
 	tempFiles = make([]TempFile, len(fileInfo))
 	cc.inputPaths = make([]string, 0, len(fileInfo))
 
@@ -631,7 +625,7 @@ func (cc *compressionCommand) prepareTempFiles(fileInfo []*FileInfo, warnLog *lo
 		}
 
 		if err != nil {
-			warnLog.Printf("Failed to create temp file %s. Skipping...\n", tempPath)
+			prints.Warnf("Failed to create temp file %s. Skipping...\n", tempPath)
 			continue
 		}
 
@@ -715,18 +709,18 @@ func (cc *compressionCommand) setStdoutAndErr(writer io.Writer) {
 var errCmdNotFound = errors.New("tool not found")
 var errNoInput = errors.New("no input given")
 
-func (cc *compressionCommand) executeAndReport(printLog, warnLog *log.Logger) {
+func (cc *compressionCommand) executeAndReport() {
 	if !cc.isAvailable {
 		cc.commandError = errCmdNotFound
 
-		warnLog.Printf("Cannot start %s. No executable available.\n", cc.toolName)
+		prints.Warnf("Cannot start %s. No executable available.\n", cc.toolName)
 		return
 	}
 
 	if len(cc.inputPaths) == 0 {
 		cc.commandError = errNoInput
 
-		warnLog.Printf("Cannot start %s. No input files are given.\n", cc.toolName)
+		prints.Warnf("Cannot start %s. No input files are given.\n", cc.toolName)
 		return
 	}
 
@@ -738,19 +732,19 @@ func (cc *compressionCommand) executeAndReport(printLog, warnLog *log.Logger) {
 	if err != nil {
 		cc.commandError = err
 
-		warnLog.Printf("%s errored in %s: %v\n", cc.toolName, cc.timeTaken.String(), err)
+		prints.Warnf("%s errored in %s: %v\n", cc.toolName, cc.timeTaken.String(), err)
 		return
 	} else if cc.stdoutFile != nil {
 		err := cc.stdoutFile.Close()
 		if err != nil {
 			cc.commandError = err
 
-			warnLog.Printf("%s errored in %s: failed to close output due to %v\n", cc.toolName, cc.timeTaken.String(), err)
+			prints.Warnf("%s errored in %s: failed to close output due to %v\n", cc.toolName, cc.timeTaken.String(), err)
 			return
 		}
 	}
 
-	printLog.Println(cc.toolName, "finished in", cc.timeTaken.String())
+	prints.Println(cc.toolName, "finished in", cc.timeTaken.String())
 }
 
 func (cc *compressionCommand) generateSingleResult(originalFileInfo *FileInfo, tempFile TempFile) *CompressionResult {

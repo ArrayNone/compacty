@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"maps"
 	"os"
 	"path/filepath"
@@ -13,6 +12,7 @@ import (
 	"github.com/ArrayNone/compacty/internal/compressor"
 	"github.com/ArrayNone/compacty/internal/config"
 	"github.com/ArrayNone/compacty/internal/report"
+	"github.com/ArrayNone/compacty/internal/prints"
 
 	"github.com/gabriel-vasile/mimetype"
 )
@@ -26,9 +26,6 @@ type OperatedFiles struct {
 
 	PerFileTools   map[string]compressor.ExecutedTool
 	BatchableTools map[string]compressor.ExecutedTool
-
-	WarnLog  *log.Logger
-	PrintLog *log.Logger
 }
 
 const (
@@ -37,7 +34,7 @@ const (
 	ForceDecline
 )
 
-func PathsToOperatedFiles(cfg *config.Config, paths []string, renameMode RenameMode, printLog, warnLog *log.Logger) (operations []*OperatedFiles) {
+func PathsToOperatedFiles(cfg *config.Config, paths []string, renameMode RenameMode) (operations []*OperatedFiles) {
 	pathCollection := make(map[string][]string)
 
 	fileFormats := cfg.GetSupportedFileFormats()
@@ -46,14 +43,14 @@ func PathsToOperatedFiles(cfg *config.Config, paths []string, renameMode RenameM
 	for _, path := range paths {
 		mime, err := mimetype.DetectFile(path)
 		if err != nil {
-			warnLog.Printf("Cannot detect MIME type of %s: %v. Skipping...\n", path, err)
+			prints.Warnf("Cannot detect MIME type of %s: %v. Skipping...\n", path, err)
 			continue
 		}
 
 		mimeString := mime.String()
 		fileExtension := filepath.Ext(path)
 		if !slices.Contains(fileFormats, mimeString) {
-			warnLog.Printf(
+			prints.Warnf(
 				"File format of %s (%s) is unsupported. Skipping...\n",
 				path, mimeString,
 			)
@@ -66,7 +63,7 @@ func PathsToOperatedFiles(cfg *config.Config, paths []string, renameMode RenameM
 		validExtensions := fileExtensions[mimeString]
 		if !slices.Contains(validExtensions, fileExtension) {
 			var ok bool
-			usedPath, ok = tryRenameMismatchedFile(renameMode, path, validExtensions[0], mimeString, printLog, warnLog)
+			usedPath, ok = tryRenameMismatchedFile(renameMode, path, validExtensions[0], mimeString)
 			if !ok {
 				continue
 			}
@@ -89,9 +86,6 @@ func PathsToOperatedFiles(cfg *config.Config, paths []string, renameMode RenameM
 			Paths:     mimePaths,
 			Extension: fileExtensions[mimeString][0],
 			Mime:      mimeString,
-
-			WarnLog:  warnLog,
-			PrintLog: printLog,
 		},
 		)
 	}
@@ -103,23 +97,23 @@ func (of *OperatedFiles) WriteReport(process *compressor.CompressionProcess) (er
 	reportDir, _ := filepath.Split(of.Paths[0])
 	compressReport, err := report.NewCompressReport(reportDir, of.Extension)
 	if err != nil {
-		of.WarnLog.Printf("Cannot create report for file format %s: %v\n", of.Extension, err)
+		prints.Warnf("Cannot create report for file format %s: %v\n", of.Extension, err)
 		return err
 	}
 
 	err = compressReport.WriteProcess(process)
 	if err != nil {
-		of.WarnLog.Printf("Error occurred while writing report for file format %s: %v\n", of.Extension, err)
+		prints.Warnf("Error occurred while writing report for file format %s: %v\n", of.Extension, err)
 		return err
 	}
 
-	err = compressReport.FlushToFile(of.PrintLog)
+	err = compressReport.FlushToFile()
 	if err != nil {
-		of.WarnLog.Printf("Error occurred while finalising report for file format %s: %v\n", of.Extension, err)
+		prints.Warnf("Error occurred while finalising report for file format %s: %v\n", of.Extension, err)
 		return err
 	}
 
-	of.PrintLog.Printf("Result written to %s.\n\n", compressReport.Path)
+	prints.Printf("Result written to %s.\n\n", compressReport.Path)
 	return nil
 }
 
@@ -130,7 +124,7 @@ func (of *OperatedFiles) SetTools(cfg *config.Config, preset string, toolNames [
 	for _, toolName := range toolNames {
 		tool, ok := cfg.Tools[toolName]
 		if !ok {
-			of.WarnLog.Printf("Attempting to run unknown tool %s. Skipping...", toolName)
+			prints.Warnf("Attempting to run unknown tool %s. Skipping...", toolName)
 			continue
 		}
 
@@ -172,13 +166,11 @@ func tryRenameMismatchedFile(
 	path string,
 	correctExtension string,
 	mimeString string,
-	printLog,
-	warnLog *log.Logger,
 ) (corrected string, ok bool) {
 
 	fileExtension := filepath.Ext(path)
 	if renameMode == ForceDecline {
-		warnLog.Printf(
+		prints.Warnf(
 			"File %s is actually a %s despite the extension being %s. Skipping...",
 			path, mimeString, fileExtension,
 		)
@@ -187,7 +179,7 @@ func tryRenameMismatchedFile(
 
 	directory, fileName := filepath.Split(path)
 	corrected = filepath.Join(directory, strings.TrimSuffix(fileName, fileExtension)+correctExtension)
-	warnLog.Printf(
+	prints.Warnf(
 		"File %s is actually a %s despite the extension being %s. Trying to rename.",
 		path, mimeString, filepath.Ext(path),
 	)
@@ -195,9 +187,9 @@ func tryRenameMismatchedFile(
 	var isAccepted bool
 	switch renameMode {
 	case ForceAccept:
-		isAccepted = renameMismatched(path, corrected, printLog, warnLog)
+		isAccepted = renameMismatched(path, corrected)
 	case PromptUser:
-		isAccepted = promptRenameMismatched(path, corrected, printLog, warnLog)
+		isAccepted = promptRenameMismatched(path, corrected)
 	}
 
 	if !isAccepted {
@@ -207,18 +199,18 @@ func tryRenameMismatchedFile(
 	return corrected, true
 }
 
-func renameMismatched(path, correctedPath string, printLog, warnLog *log.Logger) (ok bool) {
+func renameMismatched(path, correctedPath string) (ok bool) {
 	err := os.Rename(path, correctedPath)
 	if err != nil {
-		warnLog.Printf("Cannot rename file %s: %v. File is skipped...\n", path, err)
+		prints.Warnf("Cannot rename file %s: %v. File is skipped...\n", path, err)
 		return false
 	}
 
-	printLog.Printf("File successfully renamed.")
+	prints.Println("File successfully renamed.")
 	return true
 }
 
-func promptRenameMismatched(path, correctedPath string, printLog, warnLog *log.Logger) (ok bool) {
+func promptRenameMismatched(path, correctedPath string) (ok bool) {
 	fmt.Fprintf(os.Stderr, "Would you like to rename this file to %s? (y/n): ", filepath.Base(correctedPath))
 
 	reader := bufio.NewReader(os.Stdin)
@@ -226,7 +218,7 @@ func promptRenameMismatched(path, correctedPath string, printLog, warnLog *log.L
 	input = strings.TrimSpace(strings.ToLower(input))
 
 	if input == "y" || input == "yes" {
-		return renameMismatched(path, correctedPath, printLog, warnLog)
+		return renameMismatched(path, correctedPath)
 	}
 
 	fmt.Fprintf(os.Stderr, "Skipping %s.\n", path)

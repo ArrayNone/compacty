@@ -3,7 +3,6 @@ package report
 import (
 	"encoding/csv"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -106,7 +105,7 @@ func (cr *CompressReport) WriteProcess(process *compressor.CompressionProcess) (
 	return nil
 }
 
-func (cr *CompressReport) FlushToFile(printLog *log.Logger) (err error) {
+func (cr *CompressReport) FlushToFile() (err error) {
 	cr.writer.Flush()
 	err = cr.writer.Error()
 	if err != nil {
