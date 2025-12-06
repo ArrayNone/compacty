@@ -2,6 +2,7 @@ package config_test
 
 import (
 	"errors"
+	"maps"
 	"reflect"
 	"slices"
 	"strings"
@@ -116,8 +117,10 @@ func TestConfig_GetSupportedFileFormats(t *testing.T) {
 	validConfig.Cache()
 	t.Run("basic config", func(t *testing.T) {
 		formats := validConfig.GetSupportedFileFormats()
+
 		slices.Sort(formats)
 		expectedMimes := []string{"application/json", "text/plain"}
+
 		if !slices.Equal(formats, expectedMimes) {
 			t.Errorf("expected %v, got: %v", expectedMimes, formats)
 		}
@@ -135,13 +138,17 @@ func TestConfig_GetSupportedFileFormats(t *testing.T) {
 	})
 }
 
-func TestConfig_GetToolConfigFromNames(t *testing.T) {
+func TestConfig_GetSupportedFileExtensions(t *testing.T) {
 	validConfig.Cache()
 	t.Run("basic config", func(t *testing.T) {
-		tools := []string{"cat"}
-		toolConfig := validConfig.GetToolConfigFromNames(tools)
-		if !reflect.DeepEqual(toolConfig, validTool) {
-			t.Errorf("expected %v, got: %v", toolConfig, validTool)
+		formats := validConfig.GetSupportedFileExtensions()
+
+		expectedMimes := map[string][]string{"application/json": {".json"}, "text/plain": {".txt"}}
+		if !maps.EqualFunc(formats, expectedMimes, func(a []string, b []string) bool {
+			return slices.Equal(a, b)
+		},
+		) {
+			t.Errorf("expected %v, got: %v", expectedMimes, formats)
 		}
 	})
 
@@ -156,7 +163,7 @@ func TestConfig_GetToolConfigFromNames(t *testing.T) {
 		}
 	})
 
-	t.Run("file format undefined in mime-extensions should return correct file format", func(t *testing.T) {
+	t.Run("valid file format with extension undefined in mime-extensions should have a default extension", func(t *testing.T) {
 		nonexistingMimeConfig := &config.Config{
 			MimeExtensions: map[string][]string{"image/png": {}}, // This fails validation normally
 		}
@@ -171,7 +178,18 @@ func TestConfig_GetToolConfigFromNames(t *testing.T) {
 			return
 		}
 
-		t.Error("undefined yet valid mime isn't returned")
+		t.Error("mime is valid but cannot be found")
+	})
+}
+
+func TestConfig_GetToolConfigFromNames(t *testing.T) {
+	validConfig.Cache()
+	t.Run("basic config", func(t *testing.T) {
+		tools := []string{"cat"}
+		toolConfig := validConfig.GetToolConfigFromNames(tools)
+		if !reflect.DeepEqual(toolConfig, validTool) {
+			t.Errorf("expected %v, got: %v", toolConfig, validTool)
+		}
 	})
 }
 
