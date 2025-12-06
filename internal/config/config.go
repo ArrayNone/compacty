@@ -92,6 +92,8 @@ const (
 	Stdout
 )
 
+// Creates a default config file based on the contents of `defaultconfig.go` located at `path`.
+// Can return an error.
 func CreateDefaultConfig(path string) (err error) {
 	file, err := os.Create(path)
 	if err != nil {
@@ -107,7 +109,12 @@ func CreateDefaultConfig(path string) (err error) {
 	return nil
 }
 
-func GetOrCreateUserConfigFile() (path string, created bool, err error) {
+// Retrives the user config file located at `os.UserConfigDir()`. If the file does not exist,
+// this creates a default config file based on the contents of `defaultconfig.go`.
+//
+// Returns the path of the config file, a bool indicating if the file is created (`true` if it is,
+// `false` otherwise) and an error if one occurs.
+func GetOrCreateUserConfigFile() (path string, isCreated bool, err error) {
 	path, err = createUserConfigFilePath()
 	if err != nil {
 		return "", false, fmt.Errorf("cannot retrieve the user's config path: %w", err)
@@ -116,15 +123,20 @@ func GetOrCreateUserConfigFile() (path string, created bool, err error) {
 	if !fileExists(path) {
 		err := CreateDefaultConfig(path)
 		if err != nil {
-			return "", false, fmt.Errorf("cannot create default config path at %s: %w", path, err)
+			return "", false, fmt.Errorf("cannot create default config file at %s: %w", path, err)
 		}
 
-		created = true
+		isCreated = true
 	}
 
-	return path, created, nil
+	return path, isCreated, nil
 }
 
+// Searches for an executable with the `executableName` that supports `toolPlatform` in the user's PATH.
+// If the executable wasn't found, this falls back into searching the directory compacty is running in.
+//
+// Returns the path of the executable and `true` if the executable is found. If not, this returns
+// an empty string and `false`.
 func FindExecutablePath(executableName string, toolPlatform []string) (path string, ok bool) {
 	path, err := exec.LookPath(executableName)
 	if err == nil {
@@ -154,6 +166,8 @@ func FindExecutablePath(executableName string, toolPlatform []string) (path stri
 	return "", false
 }
 
+// Searches the matching wrapper for `currentPlatform` at the `wrappers` list. If no such wrapper exists for
+// `currentPlatform` or `toolPlatform` does not contain `currentPlatform`, returns an empty string instead.
 func QueryWrapper(wrappers map[string]string, toolPlatform []string, currentPlatform string) (wrapper string) {
 	if slices.Contains(toolPlatform, currentPlatform) {
 		return ""
@@ -169,6 +183,9 @@ func QueryWrapper(wrappers map[string]string, toolPlatform []string, currentPlat
 	return ""
 }
 
+// Searches the matching preset at `name` at the `presets` list that can contain the preset's full names and
+// shorthands. Returns the preset's full name and a boolean `true` if `name` is a shorthand to a preset, `false`
+// otherwise. If the matching preset is not found, returns an empty string and `false`. Meant to resolve shorthands.
 func QueryPreset(presets map[string]Preset, name string) (preset string, isShorthand bool) {
 	mappings := make(map[string]string)
 	for presetName, presetData := range presets {
@@ -186,6 +203,8 @@ func QueryPreset(presets map[string]Preset, name string) (preset string, isShort
 	return mappings[name], isShorthand
 }
 
+// Decodes the config file at `path` and returns a Config object.
+// Can also returns an error.
 func DecodeConfigFile(path string) (cfg *Config, err error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -198,19 +217,27 @@ func DecodeConfigFile(path string) (cfg *Config, err error) {
 	return &result, err
 }
 
+// Searches the matching wrapper for `tool` while running at `platform`. If no such wrapper exists for `platform`
+// or `tool` does not support `platform`, returns an empty string instead.
 func (cfg *Config) QueryToolWrapper(tool *ToolConfig, platform string) string {
 	return QueryWrapper(cfg.Wrappers[runtime.GOOS], tool.Platform, runtime.GOOS)
 }
 
+// Returns `true` if the tool with the given `toolName` is available to be run at the current platform.
+// Returns `false` otherwise.
 func (cfg *Config) IsToolAvailable(toolName string) bool {
 	_, ok := cfg.toolAvailability[toolName]
 	return ok
 }
 
+// Returns `true` if the current config has at least one tool available to be run on the user's OS. Returns
+// `false` otherwise.
 func (cfg *Config) HasAvailableTools() bool {
 	return len(cfg.toolAvailability) > 0
 }
 
+// Returns all the file formats that could be compressed. Includes the file formats defined in mime-extensions
+// and file formats that the config's tools could compress.
 func (cfg *Config) GetSupportedFileFormats() (fileFormatsMime []string) {
 	if !cfg.isCached {
 		cfg.Cache()
@@ -219,6 +246,8 @@ func (cfg *Config) GetSupportedFileFormats() (fileFormatsMime []string) {
 	return cfg.supportedFileFormats
 }
 
+// Returns all the file extensions that could be compressed. Includes the file formats defined in
+// mime-extensionsmand file formats that the config's tools could compress.
 func (cfg *Config) GetSupportedFileExtensions() (fileExtMap map[string][]string) {
 	if !cfg.isCached {
 		cfg.Cache()
@@ -227,6 +256,7 @@ func (cfg *Config) GetSupportedFileExtensions() (fileExtMap map[string][]string)
 	return cfg.supportedFileExtensions
 }
 
+// Returns a map of tools from `toolNames`.
 func (cfg *Config) GetToolConfigFromNames(toolNames []string) (toolCfgMap map[string]*ToolConfig) {
 	result := make(map[string]*ToolConfig)
 	for _, toolName := range toolNames {
@@ -236,6 +266,7 @@ func (cfg *Config) GetToolConfigFromNames(toolNames []string) (toolCfgMap map[st
 	return result
 }
 
+// Checks the config for any errors and inconsistencies. Returns a slice of errors in the config.
 func (cfg *Config) Validate() []error {
 	if !cfg.isCached {
 		cfg.Cache()
@@ -404,6 +435,7 @@ func (cfg *Config) Validate() []error {
 	return configErrors
 }
 
+// Caches supported file formats and tool availability.
 func (cfg *Config) Cache() {
 	if cfg.isCached {
 		return
@@ -480,10 +512,13 @@ func (cfg *Config) cacheAvailability() {
 	cfg.toolAvailability = availability
 }
 
+// Returns `true` if the tool overwrites files in-place. Returns `false` otherwise.
 func (ct *CompressionTool) Overwrites() bool {
+	// Note: only BatchOverwrite does these two things for now
 	return ct.OutputMode == BatchOverwrite
 }
 
+// Returns `true` if the tool can compress multiple files at once. Returns `false` otherwise.
 func (ct *CompressionTool) CanBatchCompress() bool {
 	return ct.OutputMode == BatchOverwrite
 }

@@ -8,7 +8,7 @@ const (
 	BadInput = 3 // No valid inputs
 
 	BadConfig            = 10 // Invaild configuration
-	CannotRetrieveConfig = 11 //
+	CannotRetrieveConfig = 11 // Failed to create or get the config file
 
 	Interrupted = 130 // User interrupts the tool by Ctrl+C
 )
