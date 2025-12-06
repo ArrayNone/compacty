@@ -113,6 +113,23 @@ func TestConfig_QueryPreset(t *testing.T) {
 	})
 }
 
+func TestConfig_QueryWrapper(t *testing.T) {
+	validConfig.Cache()
+	t.Run("basic preset", func(t *testing.T) {
+		queriedWrapper := config.QueryWrapper(validWrapper["linux"], []string{"windows"}, "linux")
+		if queriedWrapper != "wine" {
+			t.Errorf("trying to query \"windows\" wrapper while platform is \"linux\". expecting \"wine\", got: %q", queriedWrapper)
+		}
+	})
+
+	t.Run("exact same platform", func(t *testing.T) {
+		queriedWrapper := config.QueryWrapper(validWrapper["linux"], []string{"windows"}, "windows")
+		if queriedWrapper != "" {
+			t.Errorf("trying to query \"windows\" wrapper while platform is also \"windows\". it should return an empty string, got: %q", queriedWrapper)
+		}
+	})
+}
+
 func TestConfig_GetSupportedFileFormats(t *testing.T) {
 	validConfig.Cache()
 	t.Run("basic config", func(t *testing.T) {
