@@ -217,6 +217,50 @@ func DecodeConfigFile(path string) (cfg *Config, err error) {
 	return &result, err
 }
 
+func (t *ToolConfig) ResolveReferencesForPreset(presetName, nameAs string) (args []string, err error) {
+	visited := make(map[string]struct{})
+
+	return t.resolveReferences(presetName, nameAs, visited)
+}
+
+func (t *ToolConfig) resolveReferences(presetName, nameAs string, previousVisits map[string]struct{}) (result []string, err error) {
+	result = make([]string, 0)
+
+	arguments, ok := t.Arguments[presetName]
+	if !ok {
+		return result, fmt.Errorf("unknown preset name for tool %q at config: %s", nameAs, presetName)
+	}
+
+	_, hasVisited := previousVisits[presetName]
+	if hasVisited {
+		return result, fmt.Errorf("cyclic references detected for tool %q, caused by: %s", nameAs, presetName)
+	}
+	previousVisits[presetName] = struct{}{}
+
+	visited := make(map[string]struct{})
+	maps.Copy(visited, previousVisits)
+
+	for _, argument := range arguments {
+		reference, isReference := strings.CutPrefix(argument, "@")
+		if isReference {
+			innerArgs, err := t.resolveReferences(reference, nameAs, visited)
+			if err != nil {
+				return result, err
+			}
+
+			for _, innerArg := range innerArgs {
+				result = append(result, innerArg)
+			}
+
+			continue
+		}
+
+		result = append(result, argument)
+	}
+
+	return result, nil
+}
+
 // Searches the matching wrapper for `tool` while running at `platform`. If no such wrapper exists for `platform`
 // or `tool` does not support `platform`, returns an empty string instead.
 func (cfg *Config) QueryToolWrapper(tool *ToolConfig, platform string) string {

@@ -136,7 +136,7 @@ func (of *OperatedFiles) SetTools(cfg *config.Config, preset string, toolNames [
 			continue
 		}
 
-		executedTool, ok := compressor.ToolConfigToExecutedTool(tool, preset)
+		executedTool, ok := compressor.ToolConfigToExecutedTool(tool, preset, toolName)
 		if !ok {
 			continue
 		}
