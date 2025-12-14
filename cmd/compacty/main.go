@@ -351,6 +351,7 @@ func parseArgs() (args *CLIArguments) {
 	pflag.BoolVarP(&args.Quiet, "quiet", "q", false, "Suppress outputs")
 	pflag.BoolVar(&args.ToolPrint, "tool-print", false, "Print tool outputs, ignores --quiet")
 	pflag.BoolVar(&args.NoColour, "no-color", false, "Disable coloured output")
+	pflag.BoolVar(&args.NoColour, "no-colour", false, "Disable coloured output (alt)")
 
 	pflag.BoolVarP(&args.ActionVersion, "version", "v", false, "Print version and exit")
 	pflag.BoolVarP(&args.ActionHelp, "help", "h", false, "Print usage help and exit")
@@ -418,7 +419,7 @@ func printHelp() {
   -a, --all             Use all available tools. Flag is ignored when --tools are provided
   -q, --quiet           Suppress outputs
       --tool-print      Print tool outputs, ignores --quiet
-      --no-color        Disable coloured output
+      --no-colo[u]r     Disable coloured output
 
   -v, --version         Print version and exit
   -h, --help            Print usage help and exit
