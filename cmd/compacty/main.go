@@ -64,7 +64,7 @@ func main() {
 	}
 
 	if err := run(args); err != nil {
-		fmt.Fprintf(os.Stderr, "%s %v\n", color.RedString("Error:"), err.Error())
+		fmt.Fprintln(os.Stderr, color.RedString("Error:"), err.Error())
 
 		var exitErr *ExitCodeError
 		if errors.As(err, &exitErr) {
@@ -223,9 +223,6 @@ func run(cliArguments *CLIArguments) (err error) {
 		}
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
 	toolOutput := cliArguments.ToolOutput()
 	writeMode := cliArguments.WriteMode()
 	wrappers := loadedConfig.Wrappers[runtime.GOOS]
@@ -237,6 +234,9 @@ func run(cliArguments *CLIArguments) (err error) {
 			hasErrors = true
 		}
 	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
 	for _, operation := range operatedFiles {
 		if len(operation.BatchableTools) == 0 && len(operation.PerFileTools) == 0 {
@@ -458,19 +458,18 @@ func list(cfg *config.Config, configPath string) {
 }
 
 func writeTools(builder *strings.Builder, cfg *config.Config) {
-	builder.WriteString(color.BlueString("Tools:"))
-	builder.WriteByte('\n')
+	builder.WriteString(color.BlueString("Tools:\n"))
 
 	sortedToolNames := maputils.SortedKeys(cfg.Tools)
-
 	for _, toolName := range sortedToolNames {
 		tool := cfg.Tools[toolName]
 
 		builder.WriteString(toolName)
 		wrapper := cfg.QueryToolWrapper(tool, runtime.GOOS)
 		if wrapper != "" {
-			builder.WriteByte(' ')
-			fmt.Fprintf(builder, "(wrapped, requires %s)", wrapper)
+			builder.WriteString(" (wrapped, requires ")
+			builder.WriteString(wrapper)
+			builder.WriteByte(')')
 		}
 
 		if cfg.IsToolAvailable(toolName) {
@@ -480,32 +479,29 @@ func writeTools(builder *strings.Builder, cfg *config.Config) {
 
 		builder.WriteByte('\n')
 
-		fmt.Fprintf(builder, "| Description:\n|   ")
+		builder.WriteString("| Description:\n|   ")
 		builder.WriteString(tool.Description)
 		builder.WriteByte('\n')
 
-		fmt.Fprintf(builder, "| Supported file formats:\n|   ")
+		builder.WriteString("| Supported file formats:\n|   ")
 		builder.WriteString(strings.Join(tool.SupportedFormats, ", "))
 		builder.WriteString("\n\n")
 	}
 }
 
 func writePresets(builder *strings.Builder, cfg *config.Config) {
-	builder.WriteString(color.BlueString("Presets:"))
-	builder.WriteByte('\n')
+	builder.WriteString(color.BlueString("Presets:\n"))
 
 	sortedPresetNames := maputils.SortedKeys(cfg.Presets)
-
 	for _, presetName := range sortedPresetNames {
 		preset := cfg.Presets[presetName]
 
 		builder.WriteString(presetName)
 		shorthands := cfg.Presets[presetName].Shorthands
 		if len(shorthands) > 0 {
-			builder.WriteString(" ")
-			builder.WriteString(color.CyanString("="))
-			builder.WriteString(" ")
+			builder.WriteString(" [aka: ")
 			builder.WriteString(strings.Join(shorthands, ", "))
+			builder.WriteString("]")
 		}
 
 		if cfg.DefaultPreset == presetName {
@@ -517,7 +513,7 @@ func writePresets(builder *strings.Builder, cfg *config.Config) {
 
 		builder.WriteString("| Description:\n|   ")
 		builder.WriteString(preset.Description)
-		builder.WriteString("\n")
+		builder.WriteByte('\n')
 
 		builder.WriteString("| Tools ran by default:\n")
 
@@ -529,7 +525,7 @@ func writePresets(builder *strings.Builder, cfg *config.Config) {
 				continue
 			}
 
-			builder.WriteString("|   ")
+			builder.WriteString("| - ")
 			builder.WriteString(format)
 			builder.WriteString(": ")
 
