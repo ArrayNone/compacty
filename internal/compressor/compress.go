@@ -354,8 +354,8 @@ func (c *CompressionProcess) IsErrorFree() (ok bool) {
 }
 
 func ToolConfigToExecutedTool(tool *config.ToolConfig, argPreset string, toolName string) (result ExecutedTool, ok bool) {
-	args, err := tool.ResolveReferencesForPreset(argPreset, toolName)
-	if err != nil {
+	args, errs := tool.ResolveReferencesForPreset(argPreset, toolName)
+	if len(errs) > 0 {
 		return ExecutedTool{}, false
 	}
 
