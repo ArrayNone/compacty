@@ -420,9 +420,9 @@ func printHelp() {
 %s compacty [OPTIONS] <files>...
 
 %s
-  -p, --preset=<NAME>   Select preset (run tool with --list to see all available presets)
-  -c, --config=<PATH>   Use a config file from this path instead from your config directory
-  -t, --tools=<TOOL,..> Select available tools. Separated by commas (example: --tool=ect,pingo)
+  -p, --preset=NAME     Select preset (run tool with --list to see all available presets)
+  -c, --config=PATH     Use a config file from this path instead from your config directory
+  -t, --tools=TOOL,...  Select available tools. Separated by commas (example: --tool=ect,pingo)
   -a, --all             Use all available tools. Flag is ignored when --tools are provided
   -q, --quiet           Suppress outputs
       --tool-print      Print tool outputs, ignores --quiet
@@ -431,7 +431,7 @@ func printHelp() {
   -v, --version         Print version and exit
   -h, --help            Print usage help and exit
   -l, --list            Print tools and presets from the loaded config file and exit
-      --list-args=<MODE>Print tool arguments from the loaded config file and exit. Modes: "raw" (keep includes intact), "dump" (resolve includes)
+      --list-args=MODE  Print tool arguments from the loaded config file and exit. Modes: "raw" (keep includes intact), "dump" (resolve includes)
 
       --reset-config    Resets the config file at the user's config directory to default. If --config is provided, creates/resets the file at path instead
       --get-config-path Print the config path and exit
@@ -448,7 +448,7 @@ func printHelp() {
       --no-rename       Skip renaming files with mislabeled extensions automatically when prompted
 
       --decode-time     [EXPERIMENTAL] Measure decode time using Go's native libraries (PNG, JPEG, and GIF only)
-      --dt-measure=<t>  Measure decode time for at least the specified duration per file and their compression results in combination with --decode-time
+      --dt-measure=TIME Measure decode time for at least the specified duration per file and their compression results in combination with --decode-time
 
       --skip-validation [UNSUPPORTED] Skip config validation. May cause runtime errors and/or crash. USE AT YOUR OWN RISK!
 
