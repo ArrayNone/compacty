@@ -1,0 +1,52 @@
+version: '2'
+
+run:
+  allow-parallel-runners: true
+
+linters:
+  enable:
+    - errcheck
+    - ineffassign
+    - staticcheck
+    - unused
+    - govet
+    - gocritic
+    - makezero
+    - misspell
+    - errorlint
+    - prealloc
+    - perfsprint
+    - mnd
+
+  settings:
+    errcheck:
+      exclude-functions:
+        - (*os.File).Close
+        - fmt.Fprint
+
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - experimental
+        - opinionated
+        - performance
+        - style
+      disabled-checks:
+        - ifElseChain
+        - octalLiteral
+        - deferInLoop
+
+    misspell:
+      locale: UK
+      ignore-rules:
+        - "ect" # https://github.com/fhanau/Efficient-Compression-Tool/
+        - "color" # color package
+        - "optimize" # -optimize flag on tools
+
+    mnd:
+      ignored-numbers:
+        - "100" # Percentage
+
+formatters:
+  enable:
+    - gofmt
