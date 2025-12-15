@@ -36,6 +36,7 @@ presets:
   _setup:
     description: Internal preset meant to host arguments that are for setup. Not meant to be used directly.
     shorthands: []
+    is-hidden: true
     default-tools:
       image/vnd.mozilla.apng: []
       image/png: []
