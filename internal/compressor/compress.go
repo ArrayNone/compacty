@@ -353,7 +353,7 @@ func (c *CompressionProcess) IsErrorFree() (ok bool) {
 	return true
 }
 
-func ToolConfigToExecutedTool(tool *config.ToolConfig, argPreset string, toolName string) (result ExecutedTool, ok bool) {
+func ToolConfigToExecutedTool(tool *config.ToolConfig, argPreset, toolName string) (result ExecutedTool, ok bool) {
 	args, errs := tool.ResolveIncludesForPreset(argPreset, toolName)
 	if len(errs) > 0 {
 		return ExecutedTool{}, false

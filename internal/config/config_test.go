@@ -392,10 +392,7 @@ func TestConfig_GetSupportedFileExtensions(t *testing.T) {
 		formats := validConfig.GetSupportedFileExtensions()
 
 		expectedMimes := map[string][]string{"application/json": {".json"}, "text/plain": {".txt"}}
-		if !maps.EqualFunc(formats, expectedMimes, func(a []string, b []string) bool {
-			return slices.Equal(a, b)
-		},
-		) {
+		if !maps.EqualFunc(formats, expectedMimes, slices.Equal) {
 			t.Errorf("expected %v, got: %v", expectedMimes, formats)
 		}
 	})
