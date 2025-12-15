@@ -224,43 +224,43 @@ func DecodeConfigFile(path string) (cfg *Config, err error) {
 //
 // Returns the resolved argument list. Can also return an error (cyclic references, references pointing to non
 // existing presets)
-func (t *ToolConfig) ResolveReferencesForPreset(presetName, toolNameAs string) (args []string, err error) {
-	return t.resolveReferences(presetName, toolNameAs, make(map[string]struct{}))
+func (t *ToolConfig) ResolveReferencesForPreset(presetName, toolNameAs string) (args []string, errs []error) {
+	return t.resolveReferences(presetName, toolNameAs, "", []string{})
 }
 
-func (t *ToolConfig) resolveReferences(presetName, nameAs string, previousVisits map[string]struct{}) (result []string, err error) {
+func (t *ToolConfig) resolveReferences(presetName, nameAs, previousPreset string, previousTrace []string) (result []string, errs []error) {
 	result = make([]string, 0)
 
 	arguments, ok := t.Arguments[presetName]
 	if !ok {
-		return result, fmt.Errorf("unknown preset name for tool %q at config: %s", nameAs, presetName)
+		return result, []error{fmt.Errorf("%q has preset reference that points to an unknown preset %q at: %s", nameAs, presetName, previousPreset)}
 	}
 
-	_, hasVisited := previousVisits[presetName]
-	if hasVisited {
-		return result, fmt.Errorf("cyclic references detected for tool %q", nameAs)
+	trace := slices.Clone(previousTrace)
+	if (previousPreset != "") {
+		trace = append(trace, previousPreset)
 	}
 
-	visited := make(map[string]struct{})
-	visited[presetName] = struct{}{}
-	maps.Copy(visited, previousVisits)
+	if slices.Contains(trace, presetName) {
+		// show the final path
+		trace = append(trace, presetName)
+		return result, []error{fmt.Errorf("%q has cyclic preset reference, trace: %s", nameAs, strings.Join(trace, " -> "))}
+	}
 
+	errs = make([]error, 0)
 	for _, argument := range arguments {
 		reference, isReference := strings.CutPrefix(argument, ReferencePrefix)
 		if isReference {
-			innerArgs, err := t.resolveReferences(reference, nameAs, visited)
-			if err != nil {
-				return result, err
-			}
+			innerArgs, innerErrors := t.resolveReferences(reference, nameAs, presetName, trace)
 
 			result = append(result, innerArgs...)
-			continue
+			errs = append(errs, innerErrors...)
 		}
 
 		result = append(result, argument)
 	}
 
-	return result, nil
+	return result, errs
 }
 
 // Searches the matching wrapper for `tool` while running at `platform`. If no such wrapper exists for `platform`
@@ -478,46 +478,15 @@ func (cfg *Config) Validate() []error {
 		}
 
 		for preset := range tool.Arguments {
-			errors := cfg.validateReferences(preset, name, "", []string{})
-			configErrors = append(configErrors, errors...)
+			// use the error in resolveReferences
+			_, referenceErrors := tool.resolveReferences(preset, name, "", []string{})
+			for _, err := range referenceErrors {
+				configErrors = append(configErrors, errors.New("tool: " + err.Error()))
+			}
 		}
 	}
 
 	return configErrors
-}
-
-func (cfg *Config) validateReferences(presetName, toolName, previous string, previousTrace []string) (errors []error) {
-	const (
-		toolArgReferenceUnknown = "tool: %q has preset reference that points to an unknown preset %q at: %s"
-		toolArgReferenceCyclic  = "tool: %q has cyclic preset reference, trace: %s"
-	)
-
-	arguments, ok := cfg.Tools[toolName].Arguments[presetName]
-	if !ok {
-		return []error{fmt.Errorf(toolArgReferenceUnknown, toolName, presetName, previous)}
-	}
-
-	trace := slices.Clone(previousTrace)
-	if (previous != "") {
-		trace = append(trace, previous)
-	}
-
-	if slices.Contains(trace, presetName) {
-		// show the final path
-		trace = append(trace, presetName)
-		return []error{fmt.Errorf(toolArgReferenceCyclic, toolName, strings.Join(trace, " -> "))}
-	}
-
-	errors = make([]error, 0)
-	for _, argument := range arguments {
-		reference, isReference := strings.CutPrefix(argument, ReferencePrefix)
-		if isReference {
-			innerErrors := cfg.validateReferences(reference, toolName, presetName, trace)
-			errors = append(innerErrors, errors...)
-		}
-	}
-
-	return errors
 }
 
 // Caches supported file formats and tool availability.
