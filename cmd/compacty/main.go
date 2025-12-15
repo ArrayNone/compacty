@@ -24,6 +24,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
+type ListArgsMode int
 type CLIArguments struct {
 	Preset        string
 	ConfigPath    string
@@ -40,8 +41,9 @@ type CLIArguments struct {
 
 	ActionVersion       bool
 	ActionHelp          bool
-	ActionListArgs      string
 	ActionList          bool
+	ActionListArgs      bool
+	ActionListArgsRaw   bool
 	ActionResetConfig   bool
 	ActionGetConfigPath bool
 
@@ -55,6 +57,10 @@ type CLIArguments struct {
 }
 
 const defaultDecodeMeasure = time.Millisecond * 500
+const (
+	Raw ListArgsMode = iota
+	Processed
+)
 
 var version = "dev"
 
@@ -163,8 +169,13 @@ func run(cliArguments *CLIArguments) (err error) {
 		return nil
 	}
 
-	if pflag.Lookup("list-args").Changed {
-		listArgs(loadedConfig, cliArguments.ActionListArgs, cliArguments.ConfigPath)
+	if cliArguments.ActionListArgs {
+		listArgs(loadedConfig, cliArguments.ConfigPath, Processed)
+		return nil
+	}
+
+	if cliArguments.ActionListArgsRaw {
+		listArgs(loadedConfig, cliArguments.ConfigPath, Raw)
 		return nil
 	}
 
@@ -362,7 +373,8 @@ func parseArgs() (args *CLIArguments) {
 	pflag.BoolVarP(&args.ActionVersion, "version", "v", false, "Print version and exit")
 	pflag.BoolVarP(&args.ActionHelp, "help", "h", false, "Print usage help and exit")
 	pflag.BoolVarP(&args.ActionList, "list", "l", false, "Print tools and presets from the loaded config file and exit")
-	pflag.StringVar(&args.ActionListArgs, "list-args", "", "Print tool arguments from the loaded config file and exit. Use --list-args=raw to list arguments while keeping includes intact")
+	pflag.BoolVar(&args.ActionListArgs, "list-args", false, "Print tools and presets from the loaded config file and exit")
+	pflag.BoolVar(&args.ActionListArgsRaw, "list-args-raw", false, "Print tools and presets from the loaded config file and exit. Preset includes are not resolved and are kept as is")
 	pflag.BoolVar(&args.ActionResetConfig, "reset-config", false, " Resets the config file at the user's config directory to default. If --config is provided, creates/resets the file at path instead")
 	pflag.BoolVar(&args.ActionGetConfigPath, "get-config-path", false, "Print the config path and exit")
 
@@ -431,8 +443,8 @@ func printHelp() {
   -v, --version         Print version and exit
   -h, --help            Print usage help and exit
   -l, --list            Print tools and presets from the loaded config file and exit
-      --list-args=MODE  Print tool arguments from the loaded config file and exit. Modes: "raw" (keep includes intact), "dump" (resolve includes)
-
+      --list-args       Print tool arguments from the loaded config file and exit.
+      --list-args-raw   Print tool arguments from the loaded config file and exit. Preset includes are not resolved and are kept as is.
       --reset-config    Resets the config file at the user's config directory to default. If --config is provided, creates/resets the file at path instead
       --get-config-path Print the config path and exit
 
@@ -455,7 +467,7 @@ func printHelp() {
 `, blue("Usage:"), blue("Options:"), blue("Save modes:"), blue("Advanced options:"))
 }
 
-func listArgs(cfg *config.Config, mode, configPath string) {
+func listArgs(cfg *config.Config, configPath string, mode ListArgsMode) {
 	var builder strings.Builder
 
 	builder.WriteString("Config loaded from ")
@@ -477,7 +489,7 @@ func listArgs(cfg *config.Config, mode, configPath string) {
 		sortedPresetNames := maputils.SortedKeys(tool.Arguments)
 		for _, presetName := range sortedPresetNames {
 			args := tool.Arguments[presetName]
-			if mode != "raw" {
+			if mode != Raw {
 				var errs []error
 				args, errs = tool.ResolveIncludesForPreset(presetName, toolName)
 
