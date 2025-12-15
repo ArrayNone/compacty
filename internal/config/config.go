@@ -255,6 +255,7 @@ func (t *ToolConfig) resolveReferences(presetName, nameAs, previousPreset string
 
 			result = append(result, innerArgs...)
 			errs = append(errs, innerErrors...)
+			continue
 		}
 
 		result = append(result, argument)
