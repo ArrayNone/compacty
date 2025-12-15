@@ -74,6 +74,23 @@ compacty uses a `config.yaml` file that defines tools, presets, etc. On first ru
 
 You can see the default configuration at [defaultconfig.go](./internal/config/defaultconfig.go). A more complete configuration is available at [complete-config.yaml](./complete-config.yaml) that contains even more tools, ready to be copy-pasted.
 
+In each tool's argument list, you can include (or reuse) arguments from other presets (that are part of the same tool) by using the syntax `@preset-name`. For example:
+```
+pngout:
+    description: Lossless PNG compressor. http://www.advsys.net/ken/utils.html
+    command: pngout
+    platform: [windows, darwin, linux]
+    supported-formats: [image/png]
+    output-mode: input-output
+    arguments:
+      default-args: ["-force", "-y"]
+      lossless-loweffort: ["@default-args", "-s3"]
+      lossless-higheffort: ["@default-args", "-s1"]
+      lossless-maxbrute: ["@default-args", "-s0"]
+      ...
+```
+During runtime, `lossless-loweffort` will be resolved to `["-force", "-y", "-s3"]`, `lossless-higheffort` will be resolved to `["-force", "-y", "-s1"]`, and so on. This is pretty handy to deduplicate flags that are there for setup (for example: forcing the tools to overwrite files), but can also be used to mix-and-match arguments. Note that circular includes are not allowed.
+
 Your `config.yaml` will be validated on startup to check for inconsistencies and potential problems. See `Validate()` in [config.go](./internal/config/config.go) for all checks.
 
 ## licensing
