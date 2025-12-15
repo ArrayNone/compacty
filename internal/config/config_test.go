@@ -104,102 +104,102 @@ func TestConfig_ResolveIncludesFromPresetSuccess(t *testing.T) {
 	}
 
 	testCases := []successTestCases{
-	{
-		name: "no includes",
-		tool: &config.ToolConfig{
-			Arguments: map[string][]string{"start": {"a", "b", "c", "d", "e"}},
-			CompressionTool: tool,
-		},
-		expect: []string{"a", "b", "c", "d", "e"},
-	},
-	{
-		name: "one include",
-		tool: &config.ToolConfig{
-			Arguments: map[string][]string{
-				"start": {"@next", "b", "c", "d", "e"},
-				"next": {"x", "y", "z"},
+		{
+			name: "no includes",
+			tool: &config.ToolConfig{
+				Arguments:       map[string][]string{"start": {"a", "b", "c", "d", "e"}},
+				CompressionTool: tool,
 			},
-			CompressionTool: tool,
+			expect: []string{"a", "b", "c", "d", "e"},
 		},
-		expect: []string{"x", "y", "z", "b", "c", "d", "e"},
-	},
-	{
-		name: "one include at middle",
-		tool: &config.ToolConfig{
-			Arguments: map[string][]string{
-				"start": {"a", "b", "c", "@next", "e", "f"},
-				"next": {"1", "2", "3"},
+		{
+			name: "one include",
+			tool: &config.ToolConfig{
+				Arguments: map[string][]string{
+					"start": {"@next", "b", "c", "d", "e"},
+					"next":  {"x", "y", "z"},
+				},
+				CompressionTool: tool,
 			},
-			CompressionTool: tool,
+			expect: []string{"x", "y", "z", "b", "c", "d", "e"},
 		},
-		expect: []string{"a", "b", "c", "1", "2", "3", "e", "f"},
-	},
-	{
-		name: "one include at end",
-		tool: &config.ToolConfig{
-			Arguments: map[string][]string{
-				"start": {"a", "b", "c", "d", "@next"},
-				"next": {"1", "2", "3"},
+		{
+			name: "one include at middle",
+			tool: &config.ToolConfig{
+				Arguments: map[string][]string{
+					"start": {"a", "b", "c", "@next", "e", "f"},
+					"next":  {"1", "2", "3"},
+				},
+				CompressionTool: tool,
 			},
-			CompressionTool: tool,
+			expect: []string{"a", "b", "c", "1", "2", "3", "e", "f"},
 		},
-		expect: []string{"a", "b", "c", "d", "1", "2", "3"},
-	},
-	{
-		name: "shallow many includes",
-		tool: &config.ToolConfig{
-			Arguments: map[string][]string{
-				"start": {"@one", "@two", "@three"},
-				"one": {"1", "2", "3"},
-				"two": {"4", "5", "6"},
-				"three": {"7", "8", "9"},
+		{
+			name: "one include at end",
+			tool: &config.ToolConfig{
+				Arguments: map[string][]string{
+					"start": {"a", "b", "c", "d", "@next"},
+					"next":  {"1", "2", "3"},
+				},
+				CompressionTool: tool,
 			},
-			CompressionTool: tool,
+			expect: []string{"a", "b", "c", "d", "1", "2", "3"},
 		},
-		expect: []string{"1", "2", "3", "4", "5", "6", "7", "8", "9"},
-	},
-	{
-		name: "repeat includes",
-		tool: &config.ToolConfig{
-			Arguments: map[string][]string{
-				"start": {"@one", "4", "5", "@one", "4", "5"},
-				"one": {"1", "2", "3"},
+		{
+			name: "shallow many includes",
+			tool: &config.ToolConfig{
+				Arguments: map[string][]string{
+					"start": {"@one", "@two", "@three"},
+					"one":   {"1", "2", "3"},
+					"two":   {"4", "5", "6"},
+					"three": {"7", "8", "9"},
+				},
+				CompressionTool: tool,
 			},
-			CompressionTool: tool,
+			expect: []string{"1", "2", "3", "4", "5", "6", "7", "8", "9"},
 		},
-		expect: []string{"1", "2", "3", "4", "5", "1", "2", "3", "4", "5"},
-	},
-	{
-		name: "deep includes",
-		tool: &config.ToolConfig{
-			Arguments: map[string][]string{
-				"start": {"1", "@one", "9"},
-				"one": {"@two", "7", "8"},
-				"two": {"@three", "5", "6"},
-				"three": {"2", "3", "4"},
+		{
+			name: "repeat includes",
+			tool: &config.ToolConfig{
+				Arguments: map[string][]string{
+					"start": {"@one", "4", "5", "@one", "4", "5"},
+					"one":   {"1", "2", "3"},
+				},
+				CompressionTool: tool,
 			},
-			CompressionTool: tool,
+			expect: []string{"1", "2", "3", "4", "5", "1", "2", "3", "4", "5"},
 		},
-		expect: []string{"1", "2", "3", "4", "5", "6", "7", "8", "9"},
-	},
-	{
-		name: "direct and indirect includes",
-		tool: &config.ToolConfig{
-			Arguments: map[string][]string{
-				"start": {"a", "@one", "@two", "f"},
-				"one": {"b", "c", "@two"},
-				"two": {"d"},
+		{
+			name: "deep includes",
+			tool: &config.ToolConfig{
+				Arguments: map[string][]string{
+					"start": {"1", "@one", "9"},
+					"one":   {"@two", "7", "8"},
+					"two":   {"@three", "5", "6"},
+					"three": {"2", "3", "4"},
+				},
+				CompressionTool: tool,
 			},
-			CompressionTool: tool,
+			expect: []string{"1", "2", "3", "4", "5", "6", "7", "8", "9"},
 		},
-		expect: []string{"a", "b", "c", "d", "d", "f"},
-	},
+		{
+			name: "direct and indirect includes",
+			tool: &config.ToolConfig{
+				Arguments: map[string][]string{
+					"start": {"a", "@one", "@two", "f"},
+					"one":   {"b", "c", "@two"},
+					"two":   {"d"},
+				},
+				CompressionTool: tool,
+			},
+			expect: []string{"a", "b", "c", "d", "d", "f"},
+		},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			decoded, errs := testCase.tool.ResolveIncludesForPreset("start", "cat")
-			if (len(errs) > 1) {
+			if len(errs) > 1 {
 				t.Fatalf("expected no error, got:\n%s", errors.Join(errs...).Error())
 			}
 
@@ -208,10 +208,9 @@ func TestConfig_ResolveIncludesFromPresetSuccess(t *testing.T) {
 					"expected arguments to be: [%s]\n got: [%s]",
 					strings.Join(testCase.expect, ", "),
 					strings.Join(decoded, ", "),
-				  )
+				)
 			}
 		},
-
 		)
 	}
 }
@@ -235,7 +234,7 @@ func TestConfig_ResolveIncludesFromPresetErrors(t *testing.T) {
 		{
 			name: "unknown include",
 			tool: &config.ToolConfig{
-				Arguments: map[string][]string{"start": {"@none", "b", "c", "d", "e"}},
+				Arguments:       map[string][]string{"start": {"@none", "b", "c", "d", "e"}},
 				CompressionTool: tool,
 			},
 			wantError: "\"cat\" has preset include that points to an unknown preset \"none\" at: start",
@@ -256,7 +255,7 @@ func TestConfig_ResolveIncludesFromPresetErrors(t *testing.T) {
 			tool: &config.ToolConfig{
 				Arguments: map[string][]string{
 					"start": {"@xyz"},
-					"xyz": {"@start"},
+					"xyz":   {"@start"},
 				},
 				CompressionTool: tool,
 			},
@@ -267,8 +266,8 @@ func TestConfig_ResolveIncludesFromPresetErrors(t *testing.T) {
 			tool: &config.ToolConfig{
 				Arguments: map[string][]string{
 					"start": {"@one"},
-					"one": {"@two"},
-					"two": {"@three"},
+					"one":   {"@two"},
+					"two":   {"@three"},
 					"three": {"@start"},
 				},
 				CompressionTool: tool,
@@ -280,8 +279,8 @@ func TestConfig_ResolveIncludesFromPresetErrors(t *testing.T) {
 			tool: &config.ToolConfig{
 				Arguments: map[string][]string{
 					"start": {"@one"},
-					"one": {"@two"},
-					"two": {"@three"},
+					"one":   {"@two"},
+					"two":   {"@three"},
 					"three": {"@one"},
 				},
 				CompressionTool: tool,
@@ -293,8 +292,8 @@ func TestConfig_ResolveIncludesFromPresetErrors(t *testing.T) {
 			tool: &config.ToolConfig{
 				Arguments: map[string][]string{
 					"start": {"@one", "@two"},
-					"one": {"@one"},
-					"two": {"@two"},
+					"one":   {"@one"},
+					"two":   {"@two"},
 				},
 				CompressionTool: tool,
 			},
@@ -305,7 +304,7 @@ func TestConfig_ResolveIncludesFromPresetErrors(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			_, errs := testCase.tool.ResolveIncludesForPreset("start", "cat")
-			if (len(errs) == 0) {
+			if len(errs) == 0 {
 				t.Fatal("expected error, got no error")
 			}
 
@@ -314,7 +313,6 @@ func TestConfig_ResolveIncludesFromPresetErrors(t *testing.T) {
 				t.Fatalf("full error:\n%s\n\ndoes not contain expected error:\n%s", fullErrorString, testCase.wantError)
 			}
 		},
-
 		)
 	}
 }
@@ -849,5 +847,3 @@ func TestConfig_Validate(t *testing.T) {
 		})
 	}
 }
-
-

@@ -239,7 +239,7 @@ func (t *ToolConfig) resolveIncludes(presetName, nameAs, previousPreset string, 
 	}
 
 	trace := slices.Clone(previousTrace)
-	if (previousPreset != "") {
+	if previousPreset != "" {
 		trace = append(trace, previousPreset)
 	}
 
@@ -484,7 +484,7 @@ func (cfg *Config) Validate() []error {
 			// use the error in resolveIncludes
 			_, includeErrors := tool.resolveIncludes(preset, name, "", []string{})
 			for _, err := range includeErrors {
-				configErrors = append(configErrors, errors.New("tool: " + err.Error()))
+				configErrors = append(configErrors, errors.New("tool: "+err.Error()))
 			}
 		}
 	}
