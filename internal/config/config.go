@@ -92,6 +92,8 @@ const (
 	Stdout
 )
 
+const ReferencePrefix = "@"
+
 // Creates a default config file based on the contents of `defaultconfig.go` located at `path`.
 // Can return an error.
 func CreateDefaultConfig(path string) (err error) {
@@ -217,10 +219,13 @@ func DecodeConfigFile(path string) (cfg *Config, err error) {
 	return &result, err
 }
 
-func (t *ToolConfig) ResolveReferencesForPreset(presetName, nameAs string) (args []string, err error) {
-	visited := make(map[string]struct{})
-
-	return t.resolveReferences(presetName, nameAs, visited)
+// Resolves argument references starting at `presetName`. `toolNameAs` is what's being used as the tool's name
+// for debugging purposes.
+//
+// Returns the resolved argument list. Can also return an error (cyclic references, references pointing to non
+// existing presets)
+func (t *ToolConfig) ResolveReferencesForPreset(presetName, toolNameAs string) (args []string, err error) {
+	return t.resolveReferences(presetName, toolNameAs, make(map[string]struct{}))
 }
 
 func (t *ToolConfig) resolveReferences(presetName, nameAs string, previousVisits map[string]struct{}) (result []string, err error) {
@@ -241,17 +246,14 @@ func (t *ToolConfig) resolveReferences(presetName, nameAs string, previousVisits
 	maps.Copy(visited, previousVisits)
 
 	for _, argument := range arguments {
-		reference, isReference := strings.CutPrefix(argument, "@")
+		reference, isReference := strings.CutPrefix(argument, ReferencePrefix)
 		if isReference {
 			innerArgs, err := t.resolveReferences(reference, nameAs, visited)
 			if err != nil {
 				return result, err
 			}
 
-			for _, innerArg := range innerArgs {
-				result = append(result, innerArg)
-			}
-
+			result = append(result, innerArgs...)
 			continue
 		}
 
