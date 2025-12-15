@@ -31,6 +31,7 @@ presets: # Define presets, preset arguments for tools with a collection of defau
   <preset name>:
     description: <description> # Preset description, what it does and what it's intended for
     shorthands: [<name>] # Alternative names for the preset
+    is-hidden: <bool> # If `true`, this preset is hidden when using --list, --list-args and --list-args-raw
     default-tools:
       <MIME type>: [<tool names>] # Default tools to use for files with a certain MIME type
 
@@ -63,6 +64,7 @@ type ToolConfig struct {
 type Preset struct {
 	Description string   `yaml:"description"`
 	Shorthands  []string `yaml:"shorthands"`
+	IsHidden    bool     `yaml:"is-hidden"`
 
 	DefaultTools map[string][]string `yaml:"default-tools"`
 }

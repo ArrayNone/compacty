@@ -488,6 +488,10 @@ func listArgs(cfg *config.Config, configPath string, mode ListArgsMode) {
 
 		sortedPresetNames := maputils.SortedKeys(tool.Arguments)
 		for _, presetName := range sortedPresetNames {
+			if cfg.Presets[presetName].IsHidden {
+				continue;
+			}
+
 			args := tool.Arguments[presetName]
 			if mode != Raw {
 				var errs []error
@@ -568,6 +572,9 @@ func writePresets(builder *strings.Builder, cfg *config.Config) {
 	sortedPresetNames := maputils.SortedKeys(cfg.Presets)
 	for _, presetName := range sortedPresetNames {
 		preset := cfg.Presets[presetName]
+		if preset.IsHidden {
+			continue
+		}
 
 		builder.WriteString(presetName)
 		shorthands := cfg.Presets[presetName].Shorthands
