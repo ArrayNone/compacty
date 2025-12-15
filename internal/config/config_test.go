@@ -88,6 +88,237 @@ func TestConfig_Decode(t *testing.T) {
 	})
 }
 
+func TestConfig_ResolveReferencesFromPresetSuccess(t *testing.T) {
+	type successTestCases struct {
+		name string
+		tool *config.ToolConfig
+
+		expect []string
+	}
+
+	tool := config.CompressionTool{
+		Command:          "cat",
+		Platform:         []string{"linux"},
+		SupportedFormats: []string{"text/plain"},
+		OutputMode:       config.Stdout,
+	}
+
+	testCases := []successTestCases{
+	{
+		name: "no references",
+		tool: &config.ToolConfig{
+			Arguments: map[string][]string{"start": {"a", "b", "c", "d", "e"}},
+			CompressionTool: tool,
+		},
+		expect: []string{"a", "b", "c", "d", "e"},
+	},
+	{
+		name: "one reference",
+		tool: &config.ToolConfig{
+			Arguments: map[string][]string{
+				"start": {"@next", "b", "c", "d", "e"},
+				"next": {"x", "y", "z"},
+			},
+			CompressionTool: tool,
+		},
+		expect: []string{"x", "y", "z", "b", "c", "d", "e"},
+	},
+	{
+		name: "one reference at middle",
+		tool: &config.ToolConfig{
+			Arguments: map[string][]string{
+				"start": {"a", "b", "c", "@next", "e", "f"},
+				"next": {"1", "2", "3"},
+			},
+			CompressionTool: tool,
+		},
+		expect: []string{"a", "b", "c", "1", "2", "3", "e", "f"},
+	},
+	{
+		name: "one reference at end",
+		tool: &config.ToolConfig{
+			Arguments: map[string][]string{
+				"start": {"a", "b", "c", "d", "@next"},
+				"next": {"1", "2", "3"},
+			},
+			CompressionTool: tool,
+		},
+		expect: []string{"a", "b", "c", "d", "1", "2", "3"},
+	},
+	{
+		name: "shallow many references",
+		tool: &config.ToolConfig{
+			Arguments: map[string][]string{
+				"start": {"@one", "@two", "@three"},
+				"one": {"1", "2", "3"},
+				"two": {"4", "5", "6"},
+				"three": {"7", "8", "9"},
+			},
+			CompressionTool: tool,
+		},
+		expect: []string{"1", "2", "3", "4", "5", "6", "7", "8", "9"},
+	},
+	{
+		name: "repeat references",
+		tool: &config.ToolConfig{
+			Arguments: map[string][]string{
+				"start": {"@one", "4", "5", "@one", "4", "5"},
+				"one": {"1", "2", "3"},
+			},
+			CompressionTool: tool,
+		},
+		expect: []string{"1", "2", "3", "4", "5", "1", "2", "3", "4", "5"},
+	},
+	{
+		name: "deep references",
+		tool: &config.ToolConfig{
+			Arguments: map[string][]string{
+				"start": {"1", "@one", "9"},
+				"one": {"@two", "7", "8"},
+				"two": {"@three", "5", "6"},
+				"three": {"2", "3", "4"},
+			},
+			CompressionTool: tool,
+		},
+		expect: []string{"1", "2", "3", "4", "5", "6", "7", "8", "9"},
+	},
+	{
+		name: "direct and indirect references",
+		tool: &config.ToolConfig{
+			Arguments: map[string][]string{
+				"start": {"a", "@one", "@two", "f"},
+				"one": {"b", "c", "@two"},
+				"two": {"d"},
+			},
+			CompressionTool: tool,
+		},
+		expect: []string{"a", "b", "c", "d", "d", "f"},
+	},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			decoded, errs := testCase.tool.ResolveReferencesForPreset("start", "cat")
+			if (len(errs) > 1) {
+				t.Fatalf("expected no error, got:\n%s", errors.Join(errs...).Error())
+			}
+
+			if !reflect.DeepEqual(decoded, testCase.expect) {
+				t.Fatalf(
+					"expected arguments to be: [%s]\n got: [%s]",
+					strings.Join(testCase.expect, ", "),
+					strings.Join(decoded, ", "),
+				  )
+			}
+		},
+
+		)
+	}
+}
+
+func TestConfig_ResolveReferencesFromPresetErrors(t *testing.T) {
+	type failTestCases struct {
+		name string
+		tool *config.ToolConfig
+
+		wantError string
+	}
+
+	tool := config.CompressionTool{
+		Command:          "cat",
+		Platform:         []string{"linux"},
+		SupportedFormats: []string{"text/plain"},
+		OutputMode:       config.Stdout,
+	}
+
+	testCases := []failTestCases{
+		{
+			name: "unknown reference",
+			tool: &config.ToolConfig{
+				Arguments: map[string][]string{"start": {"@none", "b", "c", "d", "e"}},
+				CompressionTool: tool,
+			},
+			wantError: "\"cat\" has preset reference that points to an unknown preset \"none\" at: start",
+		},
+
+		{
+			name: "cyclic reference self",
+			tool: &config.ToolConfig{
+				Arguments: map[string][]string{
+					"start": {"@start"},
+				},
+				CompressionTool: tool,
+			},
+			wantError: "\"cat\" has cyclic preset reference, trace: start -> start",
+		},
+		{
+			name: "cyclic reference back and forth",
+			tool: &config.ToolConfig{
+				Arguments: map[string][]string{
+					"start": {"@xyz"},
+					"xyz": {"@start"},
+				},
+				CompressionTool: tool,
+			},
+			wantError: "\"cat\" has cyclic preset reference, trace: start -> xyz -> start",
+		},
+		{
+			name: "cyclic reference long",
+			tool: &config.ToolConfig{
+				Arguments: map[string][]string{
+					"start": {"@one"},
+					"one": {"@two"},
+					"two": {"@three"},
+					"three": {"@start"},
+				},
+				CompressionTool: tool,
+			},
+			wantError: "\"cat\" has cyclic preset reference, trace: start -> one -> two -> three -> start",
+		},
+		{
+			name: "cyclic reference long 2",
+			tool: &config.ToolConfig{
+				Arguments: map[string][]string{
+					"start": {"@one"},
+					"one": {"@two"},
+					"two": {"@three"},
+					"three": {"@one"},
+				},
+				CompressionTool: tool,
+			},
+			wantError: "\"cat\" has cyclic preset reference, trace: start -> one -> two -> three -> one",
+		},
+		{
+			name: "cyclic reference multiple",
+			tool: &config.ToolConfig{
+				Arguments: map[string][]string{
+					"start": {"@one", "@two"},
+					"one": {"@one"},
+					"two": {"@two"},
+				},
+				CompressionTool: tool,
+			},
+			wantError: "\"cat\" has cyclic preset reference, trace: start -> one -> one\n\"cat\" has cyclic preset reference, trace: start -> two -> two",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			_, errs := testCase.tool.ResolveReferencesForPreset("start", "cat")
+			if (len(errs) == 0) {
+				t.Fatal("expected error, got no error")
+			}
+
+			fullErrorString := errors.Join(errs...).Error()
+			if !strings.Contains(fullErrorString, testCase.wantError) {
+				t.Fatalf("full error:\n%s\n\ndoes not contain expected error:\n%s", fullErrorString, testCase.wantError)
+			}
+		},
+
+		)
+	}
+}
+
 func TestConfig_QueryPreset(t *testing.T) {
 	validConfig.Cache()
 	t.Run("basic preset", func(t *testing.T) {
@@ -554,6 +785,50 @@ func TestConfig_Validate(t *testing.T) {
 			},
 			wantError: "tool: \"false\" has unknown file format defined: invalid/mime",
 		},
+
+		// full reference testing is in
+		// TestConfig_ResolveReferencesFromPresetSuccess and
+		// TestConfig_ResolveReferencesFromPresetErrors
+		{
+			name: "unknown preset reference on tool",
+			config: config.Config{
+				DefaultPreset: "default",
+
+				Presets: validPreset,
+				Tools: map[string]*config.ToolConfig{
+					"false": {
+						Arguments: map[string][]string{"default": {"@literally-empty"}},
+						CompressionTool: config.CompressionTool{
+							Command:          "false",
+							Platform:         []string{"linux"},
+							SupportedFormats: []string{"text/plain"},
+						},
+					},
+				},
+				Wrappers: validWrapper,
+			},
+			wantError: "\"false\" has preset reference that points to an unknown preset \"literally-empty\" at: default",
+		},
+		{
+			name: "unknown preset reference on tool",
+			config: config.Config{
+				DefaultPreset: "default",
+
+				Presets: validPreset,
+				Tools: map[string]*config.ToolConfig{
+					"false": {
+						Arguments: map[string][]string{"default": {"@cycle"}, "cycle": {"@default"}},
+						CompressionTool: config.CompressionTool{
+							Command:          "false",
+							Platform:         []string{"linux"},
+							SupportedFormats: []string{"text/plain"},
+						},
+					},
+				},
+				Wrappers: validWrapper,
+			},
+			wantError: "\"false\" has cyclic preset reference, trace: default -> cycle -> default",
+		},
 	}
 
 	t.Run("valid preset", func(t *testing.T) {
@@ -577,3 +852,5 @@ func TestConfig_Validate(t *testing.T) {
 		})
 	}
 }
+
+
