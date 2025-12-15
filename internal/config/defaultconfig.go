@@ -33,6 +33,15 @@ presets:
       image/jpeg: [jpegoptim, ect, pingo]
       image/gif: [gifsicle]
 
+  _setup:
+    description: Internal preset meant to host arguments that are for setup. Not meant to be used directly.
+    shorthands: []
+    default-tools:
+      image/vnd.mozilla.apng: []
+      image/png: []
+      image/jpeg: []
+      image/gif: []
+
   lossless-loweffort:
     description: Lossless compression with fast, low effort compression settings.
     shorthands: [lossless-low, ll-low, lossless-fast, ll-fast]
@@ -56,7 +65,7 @@ presets:
     shorthands: []
     default-tools:
       image/vnd.mozilla.apng: [oxipng, pingo]
-      image/png: [oxipng, ect, pngout]
+      image/png: [oxipng, ect, pngout, pingo]
       image/jpeg: [jpegoptim, jpegtran, ect, pingo]
       image/gif: [gifsicle]
 
@@ -139,11 +148,12 @@ tools:
     supported-formats: [image/png, image/jpeg]
     output-mode: batch-overwrite
     arguments:
-      default-args: []
+      _setup: ["--mt-file", "--mt-deflate"]
+      default-args: ["@_setup"]
       # Note: --mt-deflate speeds up processing considerably, but produces in a very slightly larger image (~0.1-0.2% more)
-      lossless-loweffort: ["--mt-file", "--mt-deflate", "-2"] # ect does no compression at 1
-      lossless-higheffort: ["--mt-file", "--mt-deflate", "-9"]
-      lossless-maxbrute: ["--mt-file", "--mt-deflate", "-9", "--allfilters"]
+      lossless-loweffort: ["@default-args", "-2"] # ect does no compression at 1
+      lossless-higheffort: ["@default-args", "-9"]
+      lossless-maxbrute: ["@default-args", "-9", "--allfilters"]
       # Omitted, still modifies fully transparent pixels
       #image-keepalpha: ["--mt-file", "--mt-deflate", "-9", "--strict"]
       # lossy-* omitted: Lossless only
@@ -155,19 +165,20 @@ tools:
     supported-formats: [image/png, image/jpeg]
     output-mode: batch-overwrite
     arguments:
-      default-args: ["mogrify", "-define", "png:compression-level=9", "-quality", "90"]
+      _setup: ["mogrify"]
+      default-args: ["@_setup", "-define", "png:compression-level=9", "-quality", "90"]
       # Lossless compression is PNG only
-      lossless-loweffort: ["mogrify", "-define", "png:compression-level=5", "-quality", "100"]
-      lossless-higheffort: ["mogrify", "-define", "png:compression-level=9", "-quality", "100"]
-      lossless-maxbrute: ["mogrify", "-define", "png:compression-level=9", "-quality", "100"]
+      lossless-loweffort: ["@_setup", "-define", "png:compression-level=5", "-quality", "100"]
+      lossless-higheffort: ["@_setup", "-define", "png:compression-level=9", "-quality", "100"]
+      lossless-maxbrute: ["@_setup", "-define", "png:compression-level=9", "-quality", "100"]
       # image-keepalpha omitted: Does not support preserving fully transparent pixels
       # Lossy compression is JPEG only
-      lossy-lowquality: ["mogrify", "-quality", "25"]
-      lossy-subparquality: ["mogrify", "-quality", "35"]
-      lossy-midquality: ["mogrify", "-quality", "50"]
-      lossy-finequality: ["mogrify", "-quality", "70"]
-      lossy-highquality: ["mogrify", "-quality", "85"]
-      lossy-almostperfect: ["mogrify", "-quality", "100"]
+      lossy-lowquality: ["@_setup", "-quality", "25"]
+      lossy-subparquality: ["@_setup", "-quality", "35"]
+      lossy-midquality: ["@_setup", "-quality", "50"]
+      lossy-finequality: ["@_setup", "-quality", "70"]
+      lossy-highquality: ["@_setup", "-quality", "85"]
+      lossy-almostperfect: ["@_setup", "-quality", "100"]
 
   pingo:
     description: Lossless and lossy image compressor designed for web context. https://css-ig.net/pingo/
@@ -195,10 +206,11 @@ tools:
     supported-formats: [image/png, image/vnd.mozilla.apng]
     output-mode: batch-overwrite
     arguments:
-      default-args: ["--force"]
-      lossless-loweffort: ["--force", "-o", "1", "-a"]
-      lossless-higheffort: ["--force", "-o", "max", "-a"]
-      lossless-maxbrute: ["--force", "-o", "max", "-a", "-Z", "--zi", "100"]
+      _setup: ["--force"]
+      default-args: ["@_setup"]
+      lossless-loweffort: ["@_setup", "-o", "1", "-a"]
+      lossless-higheffort: ["@_setup", "-o", "max", "-a"]
+      lossless-maxbrute: ["@_setup", "-o", "max", "-a", "-Z", "--zi", "100"]
       # Omitted, still modifies fully transparent pixels
       #image-keepalpha: ["--force", "-o", "max"] # Opt-out of -a
       # lossy-* omitted: Lossless only
@@ -210,10 +222,11 @@ tools:
     supported-formats: [image/png]
     output-mode: input-output
     arguments:
-      default-args: ["-force", "-y"]
-      lossless-loweffort: ["-force", "-y", "-s3"]
-      lossless-higheffort: ["-force", "-y", "-s1"]
-      lossless-maxbrute: ["-force", "-y", "-s0"]
+      _setup: ["-force", "-y"]
+      default-args: ["@_setup"]
+      lossless-loweffort: ["@_setup", "-s3"]
+      lossless-higheffort: ["@_setup", "-s1"]
+      lossless-maxbrute: ["@_setup", "-s0"]
       # image-keepalpha omitted: Does not support preserving fully transparent pixels
       # lossy-* omitted: Lossless only
 
@@ -238,13 +251,14 @@ tools:
     supported-formats: [image/png]
     output-mode: batch-overwrite
     arguments:
-      default-args: ["--ext=.png", "--force"]
+      _setup: ["--ext=.png", "--force"]
+      default-args: ["@_setup"]
       # lossless-* omitted: Lossy only
-      lossy-lowquality: ["--ext=.png", "--force", "--speed=1", "--quality=0-60"]
-      lossy-subparquality: ["--ext=.png", "--force", "--speed=1", "--quality=0-70"]
-      lossy-midquality: ["--ext=.png", "--force", "--speed=1", "--quality=0-80"]
-      lossy-finequality: ["--ext=.png", "--force", "--speed=1", "--quality=0-90"]
-      lossy-highquality: ["--ext=.png", "--force", "--speed=1", "--quality=0-100"]
+      lossy-lowquality: ["@_setup", "--speed=1", "--quality=0-60"]
+      lossy-subparquality: ["@_setup", "--speed=1", "--quality=0-70"]
+      lossy-midquality: ["@_setup", "--speed=1", "--quality=0-80"]
+      lossy-finequality: ["@_setup", "--speed=1", "--quality=0-90"]
+      lossy-highquality: ["@_setup", "--speed=1", "--quality=0-100"]
       # lossy-almostperfect omitted: Can't consistently reach 90 SSIM2 at max quality score
       # image-keepalpha omitted: Does not support preserving fully transparent pixels
 
@@ -258,16 +272,17 @@ tools:
     supported-formats: [image/jpeg]
     output-mode: batch-overwrite
     arguments:
-      default-args: ["--force"]
-      lossless-loweffort: ["--force"]
-      lossless-higheffort: ["--force"]
-      lossless-maxbrute: ["--force"]
-      lossy-lowquality: ["--force", "-m25"]
-      lossy-subparquality: ["--force", "-m35"]
-      lossy-midquality: ["--force", "-m55"]
-      lossy-finequality: ["--force", "-m70"]
-      lossy-highquality: ["--force", "-m90"]
-      lossy-almostperfect: ["--force", "-m95"]
+      _setup: ["--force"]
+      default-args: ["@_setup"]
+      lossless-loweffort: ["@_setup"]
+      lossless-higheffort: ["@_setup"]
+      lossless-maxbrute: ["@_setup"]
+      lossy-lowquality: ["@_setup", "-m25"]
+      lossy-subparquality: ["@_setup", "-m35"]
+      lossy-midquality: ["@_setup", "-m55"]
+      lossy-finequality: ["@_setup", "-m70"]
+      lossy-highquality: ["@_setup", "-m90"]
+      lossy-almostperfect: ["@_setup", "-m95"]
 
   # https://github.com/mozilla/mozjpeg/
   # https://github.com/libjpeg-turbo/libjpeg-turbo
@@ -279,10 +294,11 @@ tools:
     supported-formats: [image/jpeg]
     output-mode: stdout
     arguments:
-      default-args: ["-optimize"]
-      lossless-loweffort: ["-optimize"]
-      lossless-higheffort: ["-optimize"]
-      lossless-maxbrute: ["-optimize"]
+      _setup: ["-optimize"]
+      default-args: ["@_setup"]
+      lossless-loweffort: ["@_setup"]
+      lossless-higheffort: ["@_setup"]
+      lossless-maxbrute: ["@_setup"]
       # lossy-* omitted: Lossless only
 
 
@@ -294,18 +310,19 @@ tools:
     supported-formats: [image/gif]
     output-mode: batch-overwrite
     arguments:
-      default-args: ["--batch", "--threads", "-O2"]
-      lossless-loweffort: ["--batch", "--threads", "-O1"]
-      lossless-higheffort: ["--batch", "--threads", "-O3"]
-      lossless-maxbrute: ["--batch", "--threads", "-O3"]
+      _setup: ["--batch", "--threads"]
+      default-args: ["@_setup", "-O2"]
+      lossless-loweffort: ["@_setup", "-O1"]
+      lossless-higheffort: ["@_setup", "-O3"]
+      lossless-maxbrute: ["@_setup", "-O3"]
       # image-keepalpha omitted: Does not support preserving fully transparent pixels.
       # -Okeepempty exists but it only keeps fully empty transparent *frames*, not pixels
-      lossy-lowquality: ["--batch", "--threads", "-O3", "--lossy=80"]
-      lossy-subparquality: ["--batch", "--threads", "-O3", "--lossy=50"]
-      lossy-midquality: ["--batch", "--threads", "-O3", "--lossy=40"]
-      lossy-finequality: ["--batch", "--threads", "-O3", "--lossy=20"]
-      lossy-highquality: ["--batch", "--threads", "-O3", "--lossy=10"]
-      lossy-almostperfect: ["--batch", "--threads", "-O3", "--lossy=2"]
+      lossy-lowquality: ["@_setup", "-O3", "--lossy=80"]
+      lossy-subparquality: ["@_setup", "-O3", "--lossy=50"]
+      lossy-midquality: ["@_setup", "-O3", "--lossy=40"]
+      lossy-finequality: ["@_setup", "-O3", "--lossy=20"]
+      lossy-highquality: ["@_setup", "-O3", "--lossy=10"]
+      lossy-almostperfect: ["@_setup", "-O3", "--lossy=2"]
 
 `
 }
