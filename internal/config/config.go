@@ -238,11 +238,11 @@ func (t *ToolConfig) resolveReferences(presetName, nameAs string, previousVisits
 
 	_, hasVisited := previousVisits[presetName]
 	if hasVisited {
-		return result, fmt.Errorf("cyclic references detected for tool %q, caused by: %s", nameAs, presetName)
+		return result, fmt.Errorf("cyclic references detected for tool %q", nameAs)
 	}
-	previousVisits[presetName] = struct{}{}
 
 	visited := make(map[string]struct{})
+	visited[presetName] = struct{}{}
 	maps.Copy(visited, previousVisits)
 
 	for _, argument := range arguments {
@@ -476,9 +476,48 @@ func (cfg *Config) Validate() []error {
 				}
 			}
 		}
+
+		for preset := range tool.Arguments {
+			errors := cfg.validateReferences(preset, name, "", []string{})
+			configErrors = append(configErrors, errors...)
+		}
 	}
 
 	return configErrors
+}
+
+func (cfg *Config) validateReferences(presetName, toolName, previous string, previousTrace []string) (errors []error) {
+	const (
+		toolArgReferenceUnknown = "tool: %q has preset reference that points to an unknown preset %q at: %s"
+		toolArgReferenceCyclic  = "tool: %q has cyclic preset reference, trace: %s"
+	)
+
+	arguments, ok := cfg.Tools[toolName].Arguments[presetName]
+	if !ok {
+		return []error{fmt.Errorf(toolArgReferenceUnknown, toolName, presetName, previous)}
+	}
+
+	trace := slices.Clone(previousTrace)
+	if (previous != "") {
+		trace = append(trace, previous)
+	}
+
+	if slices.Contains(trace, presetName) {
+		// show the final path
+		trace = append(trace, presetName)
+		return []error{fmt.Errorf(toolArgReferenceCyclic, toolName, strings.Join(trace, " -> "))}
+	}
+
+	errors = make([]error, 0)
+	for _, argument := range arguments {
+		reference, isReference := strings.CutPrefix(argument, ReferencePrefix)
+		if isReference {
+			innerErrors := cfg.validateReferences(reference, toolName, presetName, trace)
+			errors = append(innerErrors, errors...)
+		}
+	}
+
+	return errors
 }
 
 // Caches supported file formats and tool availability.
