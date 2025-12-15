@@ -92,7 +92,7 @@ const (
 	Stdout
 )
 
-const ReferencePrefix = "@"
+const IncludePrefix = "@"
 
 // Creates a default config file based on the contents of `defaultconfig.go` located at `path`.
 // Can return an error.
@@ -219,21 +219,21 @@ func DecodeConfigFile(path string) (cfg *Config, err error) {
 	return &result, err
 }
 
-// Resolves argument references starting at `presetName`. `toolNameAs` is what's being used as the tool's name
+// Resolves preset includes starting at `presetName`. `toolNameAs` is what's being used as the tool's name
 // for debugging purposes.
 //
-// Returns the resolved argument list. Can also return an error (cyclic references, references pointing to non
+// Returns the resolved argument list. Can also return an error (cyclic includes, includes pointing to non
 // existing presets)
-func (t *ToolConfig) ResolveReferencesForPreset(presetName, toolNameAs string) (args []string, errs []error) {
-	return t.resolveReferences(presetName, toolNameAs, "", []string{})
+func (t *ToolConfig) ResolveIncludesForPreset(presetName, toolNameAs string) (args []string, errs []error) {
+	return t.resolveIncludes(presetName, toolNameAs, "", []string{})
 }
 
-func (t *ToolConfig) resolveReferences(presetName, nameAs, previousPreset string, previousTrace []string) (result []string, errs []error) {
+func (t *ToolConfig) resolveIncludes(presetName, nameAs, previousPreset string, previousTrace []string) (result []string, errs []error) {
 	arguments, ok := t.Arguments[presetName]
 	result = make([]string, 0, len(arguments))
 
 	if !ok {
-		return result, []error{fmt.Errorf("%q has preset reference that points to an unknown preset %q at: %s", nameAs, presetName, previousPreset)}
+		return result, []error{fmt.Errorf("%q has preset include that points to an unknown preset %q at: %s", nameAs, presetName, previousPreset)}
 	}
 
 	trace := slices.Clone(previousTrace)
@@ -244,14 +244,14 @@ func (t *ToolConfig) resolveReferences(presetName, nameAs, previousPreset string
 	if slices.Contains(trace, presetName) {
 		// show the final path
 		trace = append(trace, presetName)
-		return result, []error{fmt.Errorf("%q has cyclic preset reference, trace: %s", nameAs, strings.Join(trace, " -> "))}
+		return result, []error{fmt.Errorf("%q has cyclic preset include, trace: %s", nameAs, strings.Join(trace, " -> "))}
 	}
 
 	errs = make([]error, 0)
 	for _, argument := range arguments {
-		reference, isReference := strings.CutPrefix(argument, ReferencePrefix)
-		if isReference {
-			innerArgs, innerErrors := t.resolveReferences(reference, nameAs, presetName, trace)
+		include, isInclude := strings.CutPrefix(argument, IncludePrefix)
+		if isInclude {
+			innerArgs, innerErrors := t.resolveIncludes(include, nameAs, presetName, trace)
 
 			result = append(result, innerArgs...)
 			errs = append(errs, innerErrors...)
@@ -479,9 +479,9 @@ func (cfg *Config) Validate() []error {
 		}
 
 		for preset := range tool.Arguments {
-			// use the error in resolveReferences
-			_, referenceErrors := tool.resolveReferences(preset, name, "", []string{})
-			for _, err := range referenceErrors {
+			// use the error in resolveIncludes
+			_, includeErrors := tool.resolveIncludes(preset, name, "", []string{})
+			for _, err := range includeErrors {
 				configErrors = append(configErrors, errors.New("tool: " + err.Error()))
 			}
 		}

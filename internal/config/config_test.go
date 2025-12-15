@@ -88,7 +88,7 @@ func TestConfig_Decode(t *testing.T) {
 	})
 }
 
-func TestConfig_ResolveReferencesFromPresetSuccess(t *testing.T) {
+func TestConfig_ResolveIncludesFromPresetSuccess(t *testing.T) {
 	type successTestCases struct {
 		name string
 		tool *config.ToolConfig
@@ -105,7 +105,7 @@ func TestConfig_ResolveReferencesFromPresetSuccess(t *testing.T) {
 
 	testCases := []successTestCases{
 	{
-		name: "no references",
+		name: "no includes",
 		tool: &config.ToolConfig{
 			Arguments: map[string][]string{"start": {"a", "b", "c", "d", "e"}},
 			CompressionTool: tool,
@@ -113,7 +113,7 @@ func TestConfig_ResolveReferencesFromPresetSuccess(t *testing.T) {
 		expect: []string{"a", "b", "c", "d", "e"},
 	},
 	{
-		name: "one reference",
+		name: "one include",
 		tool: &config.ToolConfig{
 			Arguments: map[string][]string{
 				"start": {"@next", "b", "c", "d", "e"},
@@ -124,7 +124,7 @@ func TestConfig_ResolveReferencesFromPresetSuccess(t *testing.T) {
 		expect: []string{"x", "y", "z", "b", "c", "d", "e"},
 	},
 	{
-		name: "one reference at middle",
+		name: "one include at middle",
 		tool: &config.ToolConfig{
 			Arguments: map[string][]string{
 				"start": {"a", "b", "c", "@next", "e", "f"},
@@ -135,7 +135,7 @@ func TestConfig_ResolveReferencesFromPresetSuccess(t *testing.T) {
 		expect: []string{"a", "b", "c", "1", "2", "3", "e", "f"},
 	},
 	{
-		name: "one reference at end",
+		name: "one include at end",
 		tool: &config.ToolConfig{
 			Arguments: map[string][]string{
 				"start": {"a", "b", "c", "d", "@next"},
@@ -146,7 +146,7 @@ func TestConfig_ResolveReferencesFromPresetSuccess(t *testing.T) {
 		expect: []string{"a", "b", "c", "d", "1", "2", "3"},
 	},
 	{
-		name: "shallow many references",
+		name: "shallow many includes",
 		tool: &config.ToolConfig{
 			Arguments: map[string][]string{
 				"start": {"@one", "@two", "@three"},
@@ -159,7 +159,7 @@ func TestConfig_ResolveReferencesFromPresetSuccess(t *testing.T) {
 		expect: []string{"1", "2", "3", "4", "5", "6", "7", "8", "9"},
 	},
 	{
-		name: "repeat references",
+		name: "repeat includes",
 		tool: &config.ToolConfig{
 			Arguments: map[string][]string{
 				"start": {"@one", "4", "5", "@one", "4", "5"},
@@ -170,7 +170,7 @@ func TestConfig_ResolveReferencesFromPresetSuccess(t *testing.T) {
 		expect: []string{"1", "2", "3", "4", "5", "1", "2", "3", "4", "5"},
 	},
 	{
-		name: "deep references",
+		name: "deep includes",
 		tool: &config.ToolConfig{
 			Arguments: map[string][]string{
 				"start": {"1", "@one", "9"},
@@ -183,7 +183,7 @@ func TestConfig_ResolveReferencesFromPresetSuccess(t *testing.T) {
 		expect: []string{"1", "2", "3", "4", "5", "6", "7", "8", "9"},
 	},
 	{
-		name: "direct and indirect references",
+		name: "direct and indirect includes",
 		tool: &config.ToolConfig{
 			Arguments: map[string][]string{
 				"start": {"a", "@one", "@two", "f"},
@@ -198,7 +198,7 @@ func TestConfig_ResolveReferencesFromPresetSuccess(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			decoded, errs := testCase.tool.ResolveReferencesForPreset("start", "cat")
+			decoded, errs := testCase.tool.ResolveIncludesForPreset("start", "cat")
 			if (len(errs) > 1) {
 				t.Fatalf("expected no error, got:\n%s", errors.Join(errs...).Error())
 			}
@@ -216,7 +216,7 @@ func TestConfig_ResolveReferencesFromPresetSuccess(t *testing.T) {
 	}
 }
 
-func TestConfig_ResolveReferencesFromPresetErrors(t *testing.T) {
+func TestConfig_ResolveIncludesFromPresetErrors(t *testing.T) {
 	type failTestCases struct {
 		name string
 		tool *config.ToolConfig
@@ -233,26 +233,26 @@ func TestConfig_ResolveReferencesFromPresetErrors(t *testing.T) {
 
 	testCases := []failTestCases{
 		{
-			name: "unknown reference",
+			name: "unknown include",
 			tool: &config.ToolConfig{
 				Arguments: map[string][]string{"start": {"@none", "b", "c", "d", "e"}},
 				CompressionTool: tool,
 			},
-			wantError: "\"cat\" has preset reference that points to an unknown preset \"none\" at: start",
+			wantError: "\"cat\" has preset include that points to an unknown preset \"none\" at: start",
 		},
 
 		{
-			name: "cyclic reference self",
+			name: "cyclic include self",
 			tool: &config.ToolConfig{
 				Arguments: map[string][]string{
 					"start": {"@start"},
 				},
 				CompressionTool: tool,
 			},
-			wantError: "\"cat\" has cyclic preset reference, trace: start -> start",
+			wantError: "\"cat\" has cyclic preset include, trace: start -> start",
 		},
 		{
-			name: "cyclic reference back and forth",
+			name: "cyclic include back and forth",
 			tool: &config.ToolConfig{
 				Arguments: map[string][]string{
 					"start": {"@xyz"},
@@ -260,10 +260,10 @@ func TestConfig_ResolveReferencesFromPresetErrors(t *testing.T) {
 				},
 				CompressionTool: tool,
 			},
-			wantError: "\"cat\" has cyclic preset reference, trace: start -> xyz -> start",
+			wantError: "\"cat\" has cyclic preset include, trace: start -> xyz -> start",
 		},
 		{
-			name: "cyclic reference long",
+			name: "cyclic include long",
 			tool: &config.ToolConfig{
 				Arguments: map[string][]string{
 					"start": {"@one"},
@@ -273,10 +273,10 @@ func TestConfig_ResolveReferencesFromPresetErrors(t *testing.T) {
 				},
 				CompressionTool: tool,
 			},
-			wantError: "\"cat\" has cyclic preset reference, trace: start -> one -> two -> three -> start",
+			wantError: "\"cat\" has cyclic preset include, trace: start -> one -> two -> three -> start",
 		},
 		{
-			name: "cyclic reference long 2",
+			name: "cyclic include long 2",
 			tool: &config.ToolConfig{
 				Arguments: map[string][]string{
 					"start": {"@one"},
@@ -286,10 +286,10 @@ func TestConfig_ResolveReferencesFromPresetErrors(t *testing.T) {
 				},
 				CompressionTool: tool,
 			},
-			wantError: "\"cat\" has cyclic preset reference, trace: start -> one -> two -> three -> one",
+			wantError: "\"cat\" has cyclic preset include, trace: start -> one -> two -> three -> one",
 		},
 		{
-			name: "cyclic reference multiple",
+			name: "cyclic include multiple",
 			tool: &config.ToolConfig{
 				Arguments: map[string][]string{
 					"start": {"@one", "@two"},
@@ -298,13 +298,13 @@ func TestConfig_ResolveReferencesFromPresetErrors(t *testing.T) {
 				},
 				CompressionTool: tool,
 			},
-			wantError: "\"cat\" has cyclic preset reference, trace: start -> one -> one\n\"cat\" has cyclic preset reference, trace: start -> two -> two",
+			wantError: "\"cat\" has cyclic preset include, trace: start -> one -> one\n\"cat\" has cyclic preset include, trace: start -> two -> two",
 		},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			_, errs := testCase.tool.ResolveReferencesForPreset("start", "cat")
+			_, errs := testCase.tool.ResolveIncludesForPreset("start", "cat")
 			if (len(errs) == 0) {
 				t.Fatal("expected error, got no error")
 			}
@@ -786,11 +786,11 @@ func TestConfig_Validate(t *testing.T) {
 			wantError: "tool: \"false\" has unknown file format defined: invalid/mime",
 		},
 
-		// full reference testing is in
-		// TestConfig_ResolveReferencesFromPresetSuccess and
-		// TestConfig_ResolveReferencesFromPresetErrors
+		// full include testing is in
+		// TestConfig_ResolveIncludesFromPresetSuccess and
+		// TestConfig_ResolveIncludesFromPresetErrors
 		{
-			name: "unknown preset reference on tool",
+			name: "unknown preset include on tool",
 			config: config.Config{
 				DefaultPreset: "default",
 
@@ -807,10 +807,10 @@ func TestConfig_Validate(t *testing.T) {
 				},
 				Wrappers: validWrapper,
 			},
-			wantError: "\"false\" has preset reference that points to an unknown preset \"literally-empty\" at: default",
+			wantError: "\"false\" has preset include that points to an unknown preset \"literally-empty\" at: default",
 		},
 		{
-			name: "unknown preset reference on tool",
+			name: "unknown preset include on tool",
 			config: config.Config{
 				DefaultPreset: "default",
 
@@ -827,7 +827,7 @@ func TestConfig_Validate(t *testing.T) {
 				},
 				Wrappers: validWrapper,
 			},
-			wantError: "\"false\" has cyclic preset reference, trace: default -> cycle -> default",
+			wantError: "\"false\" has cyclic preset include, trace: default -> cycle -> default",
 		},
 	}
 
