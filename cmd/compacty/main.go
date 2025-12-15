@@ -246,7 +246,7 @@ func run(cliArguments *CLIArguments) (err error) {
 
 	for _, operation := range operatedFiles {
 		if len(operation.BatchableTools) == 0 && len(operation.PerFileTools) == 0 {
-			prints.Warnf("No valid tools found for file format %s (%s).\n", operation.Extension, operation.Mime)
+			prints.Warnf("No valid or available tools found for file format %s (%s). Check your config file or install tools for this format.\n", operation.Extension, operation.Mime)
 			continue
 		}
 
