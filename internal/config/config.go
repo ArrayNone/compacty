@@ -229,9 +229,9 @@ func (t *ToolConfig) ResolveReferencesForPreset(presetName, toolNameAs string) (
 }
 
 func (t *ToolConfig) resolveReferences(presetName, nameAs, previousPreset string, previousTrace []string) (result []string, errs []error) {
-	result = make([]string, 0)
-
 	arguments, ok := t.Arguments[presetName]
+	result = make([]string, 0, len(arguments))
+
 	if !ok {
 		return result, []error{fmt.Errorf("%q has preset reference that points to an unknown preset %q at: %s", nameAs, presetName, previousPreset)}
 	}
