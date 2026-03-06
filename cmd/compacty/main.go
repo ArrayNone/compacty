@@ -488,7 +488,7 @@ func listArgs(cfg *config.Config, configPath string, mode ListArgsMode) {
 
 		sortedPresetNames := maputils.SortedKeys(tool.Arguments)
 		for _, presetName := range sortedPresetNames {
-			if cfg.Presets[presetName].IsHidden {
+			if cfg.Presets[presetName].IsHidden && mode == Processed {
 				continue
 			}
 
