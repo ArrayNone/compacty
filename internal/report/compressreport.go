@@ -125,7 +125,13 @@ func commandWithArgsString(cmdArgs []string, toolArgCount int) string {
 }
 
 func buildResultLine(fileName, toolName string, result *compressor.CompressionResult) (fields []string) {
-	commandWithArgs := commandWithArgsString(result.Command.Args, len(result.Arguments))
+	argCount := len(result.Arguments)
+	if result.IsWrapped {
+		// the wrapper is included as an "argument" on Command.Args, so this factors that in
+		argCount += 1
+	}
+
+	commandWithArgs := commandWithArgsString(result.Command.Args, argCount)
 
 	if result.CreateError != nil {
 		return []string{fileName, toolName, commandWithArgs, "CANNOT CREATE OUTPUT", "-", "-", "-", "-"}

@@ -57,6 +57,7 @@ type FileInfo struct {
 type CompressionResult struct {
 	Command   *exec.Cmd
 	Arguments []string
+	IsWrapped bool
 
 	TimeTaken time.Duration
 
@@ -756,6 +757,7 @@ func (cc *compressionCommand) generateSingleResult(originalFileInfo *FileInfo, t
 		return &CompressionResult{
 			Command:   cc.command,
 			Arguments: cc.arguments,
+			IsWrapped: cc.wrapper != "",
 
 			FinalSize:    originalFileInfo.Size,
 			OriginalSize: originalFileInfo.Size,
@@ -772,6 +774,7 @@ func (cc *compressionCommand) generateSingleResult(originalFileInfo *FileInfo, t
 	return &CompressionResult{
 		Command:   cc.command,
 		Arguments: cc.tool.Arguments,
+		IsWrapped: cc.wrapper != "",
 
 		FinalSize:    finalSize,
 		OriginalSize: originalFileInfo.Size,
