@@ -525,7 +525,7 @@ func writeSizeLine(summaryBuilder *strings.Builder, result *CompressionResult, i
 		return
 	}
 
-	percentage := float32(result.FinalSize) * 100 / float32(result.OriginalSize)
+	percentage := float64(result.FinalSize) * 100 / float64(result.OriginalSize)
 	sizeLine := fmt.Sprintf("%d (%f%%)", result.FinalSize, percentage)
 	if isBest {
 		sizeLine = color.GreenString(sizeLine)
