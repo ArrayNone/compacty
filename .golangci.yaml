@@ -17,6 +17,7 @@ linters:
     - prealloc
     - perfsprint
     - mnd
+    - modernize
 
   settings:
     errcheck:
