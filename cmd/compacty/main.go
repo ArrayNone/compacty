@@ -433,9 +433,9 @@ func printHelp() {
 
 %s
   -p, --preset=NAME     Select preset (run tool with --list to see all available presets)
-  -c, --config=PATH     Use a config file from this path instead from your config directory
-  -t, --tools=TOOL,...  Select available tools. Separated by commas (example: --tool=ect,pingo)
-  -a, --all             Use all available tools. Flag is ignored when --tools are provided
+  -c, --config=PATH     Use a config file from a given path instead from your config directory
+  -t, --tools=TOOL,...  Select available tools. Separated by commas (example: --tools=ect,pingo)
+  -a, --all             Use all available tools. Flag is ignored when using --tools
   -q, --quiet           Suppress outputs
       --tool-print      Print tool outputs, ignores --quiet
       --no-colo[u]r     Disable coloured output
@@ -443,9 +443,9 @@ func printHelp() {
   -v, --version         Print version and exit
   -h, --help            Print usage help and exit
   -l, --list            Print tools and presets from the loaded config file and exit
-      --list-args       Print tool arguments from the loaded config file and exit.
-      --list-args-raw   Print tool arguments from the loaded config file and exit. Preset includes are not resolved and are kept as is.
-      --reset-config    Resets the config file at the user's config directory to default. If --config is provided, creates/resets the file at path instead
+      --list-args       Print tool arguments from the loaded config file and exit
+      --list-args-raw   Print tool arguments from the loaded config file and exit. Shows hidden presets and preset includes are kept as is
+      --reset-config    Resets the config file at your config directory to default. If using --config, creates/resets the file at --config instead
       --get-config-path Print the config path and exit
 
 %s
@@ -455,12 +455,12 @@ func printHelp() {
 
 %s
       --report          Save compression results in .tsv files
-      --per-file        Force files to be compressed one by one, intended for per-file benchmarking
+      --per-file        Force tools that batch files to compress one file at a time, intended for per-file benchmarking
       --force-rename    Automatically rename files with mislabeled extensions when prompted
       --no-rename       Skip renaming files with mislabeled extensions automatically when prompted
 
       --decode-time     [EXPERIMENTAL] Measure decode time using Go's native libraries (PNG, JPEG, and GIF only)
-      --dt-measure=TIME Measure decode time for at least the specified duration per file and their compression results in combination with --decode-time
+      --dt-measure=TIME If using --decode-time, measure decode time for at least the specified duration per file and their compression results
 
       --skip-validation [UNSUPPORTED] Skip config validation. May cause runtime errors and/or crash. USE AT YOUR OWN RISK!
 
