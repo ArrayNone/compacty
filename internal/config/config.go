@@ -260,7 +260,12 @@ func (t *ToolConfig) resolveIncludes(presetName, nameAs, previousPreset string, 
 			continue
 		}
 
-		result = append(result, argument)
+		escaped, isIncludeEscaped := strings.CutPrefix(argument, "\\" + IncludePrefix)
+		if isIncludeEscaped {
+			escaped = "@" + escaped
+		}
+
+		result = append(result, escaped)
 	}
 
 	return result, errs
