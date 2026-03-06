@@ -64,7 +64,7 @@ type CompressionResult struct {
 	OriginalSize int64
 	FinalSize    int64
 
-	CreateError        error
+	CreateFileError    error
 	CommandError       error
 	ReadFinalSizeError error
 
@@ -99,6 +99,15 @@ type compressionCommand struct {
 
 	commandError error
 	isAvailable  bool
+}
+
+func ToolConfigToExecutedTool(tool *config.ToolConfig, argPreset, toolName string) (result ExecutedTool, ok bool) {
+	args, errs := tool.ResolveIncludesForPreset(argPreset, toolName)
+
+	return ExecutedTool{
+		CompressionTool: &tool.CompressionTool,
+		Arguments:       args,
+	}, len(errs) == 0
 }
 
 func NewCompressionProcess(
@@ -354,21 +363,11 @@ func (c *CompressionProcess) IsErrorFree() (ok bool) {
 	return true
 }
 
-func ToolConfigToExecutedTool(tool *config.ToolConfig, argPreset, toolName string) (result ExecutedTool, ok bool) {
-	args, errs := tool.ResolveIncludesForPreset(argPreset, toolName)
-	if len(errs) > 0 {
-		return ExecutedTool{}, false
-	}
-
-	return ExecutedTool{
-		CompressionTool: &tool.CompressionTool,
-		Arguments:       args,
-	}, true
-}
 
 func (r *CompressionResult) HasError() bool {
-	return r.CommandError != nil || r.ReadFinalSizeError != nil || r.Decode.Err != nil || r.CreateError != nil
+	return r.CommandError != nil || r.ReadFinalSizeError != nil || r.Decode.Err != nil || r.CreateFileError != nil
 }
+
 
 func (c *CompressionProcess) findBestToolSize(fileIdx int) (bestTool string) {
 	bestSize := c.OriginalFileInfo[fileIdx].Size
@@ -494,7 +493,7 @@ func (c *CompressionProcess) printResultSummary(fileIdx int, bestToolSize, bestT
 
 		summaryBuilder.WriteString("| " + toolName + ": ")
 
-		if toolResult.CreateError != nil {
+		if toolResult.CreateFileError != nil {
 			summaryBuilder.WriteString(color.YellowString("CANNOT CREATE OUTPUT FILE"))
 			summaryBuilder.WriteByte('\n') // Coloured \n messes up spacing, must be separated
 			continue
@@ -748,43 +747,40 @@ func (cc *compressionCommand) executeAndReport() {
 	prints.Println(cc.toolName, "finished in", cc.timeTaken.String())
 }
 
-func (cc *compressionCommand) generateSingleResult(originalFileInfo *FileInfo, tempFile TempFile) *CompressionResult {
-	if !cc.isAvailable {
-		return cc.generateErrorResult(errCmdNotFound, originalFileInfo, tempFile)
-	}
-
-	if tempFile.CreateError != nil {
-		return &CompressionResult{
-			Command:   cc.command,
-			Arguments: cc.arguments,
-			IsWrapped: cc.wrapper != "",
-
-			FinalSize:    originalFileInfo.Size,
-			OriginalSize: originalFileInfo.Size,
-
-			TimeTaken: cc.timeTaken,
-
-			CommandError:       cc.commandError,
-			ReadFinalSizeError: nil,
-			CreateError:        tempFile.CreateError,
-		}
-	}
-
-	finalSize, errSize := getFileSize(tempFile.Path)
-	return &CompressionResult{
+func (cc *compressionCommand) generateSingleResult(originalFileInfo *FileInfo, tempFile TempFile) (result *CompressionResult) {
+	result = &CompressionResult{
 		Command:   cc.command,
 		Arguments: cc.tool.Arguments,
 		IsWrapped: cc.wrapper != "",
 
-		FinalSize:    finalSize,
+		FinalSize: originalFileInfo.Size,
 		OriginalSize: originalFileInfo.Size,
 
 		TimeTaken: cc.timeTaken,
 
-		CommandError:       cc.commandError,
-		ReadFinalSizeError: errSize,
-		// Decode time-related stuff are computed later
+		CommandError:       nil,
+		ReadFinalSizeError: nil,
+		CreateFileError:    nil,
 	}
+
+	// Copy errors (if any)
+
+	if !cc.isAvailable {
+		result.CommandError = errCmdNotFound
+	} else {
+		result.CommandError = cc.commandError
+	}
+
+	result.CreateFileError = tempFile.CreateError
+
+	finalSize, errSize := getFileSize(tempFile.Path)
+	if errSize != nil {
+		result.ReadFinalSizeError = errSize
+	} else {
+		result.FinalSize = finalSize
+	}
+
+	return result
 }
 
 func (cc *compressionCommand) generateResults(originalFileInfo []*FileInfo, tempFiles []TempFile) []*CompressionResult {
@@ -794,23 +790,6 @@ func (cc *compressionCommand) generateResults(originalFileInfo []*FileInfo, temp
 	}
 
 	return results
-}
-
-func (cc *compressionCommand) generateErrorResult(err error, originalFileInfo *FileInfo, tempFile TempFile) *CompressionResult {
-	return &CompressionResult{
-		Command:   cc.command,
-		Arguments: cc.tool.Arguments,
-
-		FinalSize:    originalFileInfo.Size,
-		OriginalSize: originalFileInfo.Size,
-
-		TimeTaken: cc.timeTaken,
-
-		CommandError:       err,
-		ReadFinalSizeError: nil,
-		CreateError:        tempFile.CreateError,
-		// Decode time-related stuff are computed later
-	}
 }
 
 func compressedFilePath(dir, baseName, toolName, extension string) string {
@@ -823,10 +802,6 @@ func getFileInfo(path string) (FileInfo, error) {
 	extension := filepath.Ext(fileName)
 	originalSize, err := getFileSize(path)
 
-	if err != nil {
-		return FileInfo{}, err
-	}
-
 	return FileInfo{
 		Path: path,
 
@@ -838,7 +813,7 @@ func getFileInfo(path string) (FileInfo, error) {
 		Size: originalSize,
 
 		// Keep decode time optional
-	}, nil
+	}, err
 }
 
 func getFileSize(path string) (size int64, err error) {

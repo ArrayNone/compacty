@@ -133,7 +133,7 @@ func buildResultLine(fileName, toolName string, result *compressor.CompressionRe
 
 	commandWithArgs := commandWithArgsString(result.Command.Args, argCount)
 
-	if result.CreateError != nil {
+	if result.CreateFileError != nil {
 		return []string{fileName, toolName, commandWithArgs, "CANNOT CREATE OUTPUT", "-", "-", "-", "-"}
 	}
 
@@ -169,7 +169,7 @@ func buildResultLine(fileName, toolName string, result *compressor.CompressionRe
 }
 
 func expandResultLineWithDecodeTime(fields []string, result *compressor.CompressionResult) []string {
-	if result.CommandError != nil || result.CreateError != nil {
+	if result.CommandError != nil || result.CreateFileError != nil {
 		fields = append(
 			fields,
 			"-",
