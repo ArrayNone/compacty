@@ -260,8 +260,9 @@ func (t *ToolConfig) resolveIncludes(presetName, nameAs, previousPreset string, 
 			continue
 		}
 
-		escaped := strings.ReplaceAll(argument, "\\" + IncludePrefix, "@")
-		result = append(result, escaped)
+		// Escaping @ symbols, uncomment later (be sure to also uncomment the escaping @ tests at config_test.go)
+		// escaped := strings.ReplaceAll(argument, "\\" + IncludePrefix, "@")
+		result = append(result, argument)
 	}
 
 	return result, errs
